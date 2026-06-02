@@ -1,0 +1,286 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enum untuk role pengguna
+enum Role {
+  ADMIN
+  TENANT // Penjual/Kreator
+  BUYER  // Pembeli
+}
+
+// Tabel Induk Pengguna (Login Credential)
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(BUYER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant?
+  purchases Transaction[]
+}
+
+// Profil Toko / Landing Page Utama (Tenant)
+model Tenant {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  username       String    @unique
+  displayName    String
+  bio            String?
+  avatarUrl      String?
+  qrCodeUrl      String?
+  customDomain   String?   @unique
+  seoConfig      Json?
+  isPremium      Boolean   @default(false)
+  premiumUntil   DateTime?
+  walletBalance  Float     @default(0)
+  // Notifikasi Otomatis
+  notifMethod    String    @default("EMAIL") // EMAIL | WHATSAPP | BOTH
+  waPhoneNumber  String?
+  // Payment Gateway (Premium Only)
+  pgProvider     String?   // "MIDTRANS" | "XENDIT" | null
+  pgApiKey       String?   // Encrypted on deploy
+  bankName       String?
+  bankAccount    String?
+  bankAccountName String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user               User               @relation(fields: [userId], references: [id])
+  pages              Page[]
+  products           DigitalProduct[]
+  subscriptions      Subscription[]
+  analyticsEvents    AnalyticsEvent[]
+  leads              Lead[]
+  orders             Order[]
+  walletTransactions WalletTransaction[]
+  whatsappLogs       WhatsappLog[]
+
+  // Status Penangguhan (Suspend)
+  isSuspended        Boolean   @default(false)
+  suspendReason      String?
+}
+
+// Halaman yang dibuat Tenant
+model Page {
+  id          String   @id @default(uuid())
+  tenantId    String
+  slug        String   // "index", "sale", "booking"
+  title       String?
+  themeConfig Json?
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  blocks Block[]
+}
+
+// Tipe Blok/Widget
+enum BlockType {
+  LINK
+  TEXT
+  IMAGE
+  VIDEO
+  PRODUCT
+  FORM_RSVP
+  MAPS
+  BOOKING
+}
+
+// Blok/Widget di dalam Halaman
+model Block {
+  id        String    @id @default(uuid())
+  pageId    String
+  type      BlockType
+  order     Int
+  content   Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  page Page @relation(fields: [pageId], references: [id])
+}
+
+// Katalog Produk Digital
+model DigitalProduct {
+  id          String   @id @default(uuid())
+  tenantId    String
+  title       String
+  description String?
+  price       Float
+  fileUrl     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  transactions Transaction[]
+}
+
+// Riwayat Transaksi Produk Digital
+model Transaction {
+  id               String   @id @default(uuid())
+  buyerId          String
+  digitalProductId String
+  amount           Float
+  status           String   // PENDING, SUCCESS, FAILED
+  paymentMethod    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  buyer          User           @relation(fields: [buyerId], references: [id])
+  digitalProduct DigitalProduct @relation(fields: [digitalProductId], references: [id])
+}
+
+// Riwayat Langganan Premium
+model Subscription {
+  id          String    @id @default(uuid())
+  tenantId    String
+  plan        String    // "MONTHLY" | "YEARLY"
+  amount      Float
+  status      String    // "PENDING", "PAID", "FAILED"
+  invoiceUrl  String?
+  referenceId String?
+  createdAt   DateTime  @default(now())
+  paidAt      DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// Analytics Event
+model AnalyticsEvent {
+  id        String   @id @default(uuid())
+  tenantId  String
+  type      String   // "PAGE_VIEW" | "LINK_CLICK" | "PRODUCT_VIEW"
+  targetId  String?
+  userAgent String?
+  ipHash    String?
+  referrer  String?
+  country   String?
+  city      String?
+  device    String?
+  os        String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// Data Lead: Booking / RSVP / Form
+model Lead {
+  id           String    @id @default(uuid())
+  tenantId     String
+  blockId      String
+  source       String    @default("BOOKING") // BOOKING | RSVP | FORM | CONTACT
+  name         String
+  phone        String?
+  email        String?
+  bookingDate  DateTime?
+  bookingTime  String?
+  notes        String?
+  internalNote String?   // Catatan internal penjual
+  status       String    @default("NEW") // NEW | FOLLOW_UP | CONFIRMED | COMPLETED | CANCELLED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// Order dari Pembeli (Guest Checkout) — Multi-Item
+model Order {
+  id              String   @id @default(uuid())
+  tenantId        String
+  orderNumber     String   @unique
+  customerName    String
+  customerPhone   String   // No WA pembeli
+  customerEmail   String?
+  shippingAddress String?
+  notes           String?  // Catatan dari pembeli
+  internalNote    String?  // Catatan internal penjual
+  grandTotal      Float
+  platformFee     Float    @default(0)
+  netAmount       Float
+  channel         String   @default("DIRECT") // DIRECT | SHOPEE | TOKOPEDIA | WHATSAPP
+  status          String   @default("PENDING") // PENDING | CONFIRMED | PROCESSING | DELIVERED | CANCELLED
+  paymentMethod   String?
+  paymentGateway  String?  // MIDTRANS | XENDIT | null
+  paymentLink     String?
+  awbNumber       String?  // Nomor Resi
+  courier         String?  // Nama Ekspedisi
+  waSent          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id])
+  items  OrderItem[]
+}
+
+// Item per Order
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String
+  blockId     String? // Opsional: block bisa dihapus tapi data tetap ada
+  productName String
+  imageUrl    String?
+  price       Float
+  quantity    Int
+  subtotal    Float   // price * quantity
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// Riwayat Mutasi Saldo Wallet (Ledger)
+model WalletTransaction {
+  id          String   @id @default(uuid())
+  tenantId    String
+  type        String   // "CREDIT" | "DEBIT"
+  amount      Float
+  description String
+  referenceId String?
+  status      String   @default("SUCCESS") // SUCCESS | PENDING
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// Sistem Tiket & Laporan (Support & Report)
+model Ticket {
+  id          String   @id @default(uuid())
+  senderEmail String
+  senderName  String
+  subject     String
+  message     String
+  status      String   @default("OPEN") // OPEN | RESOLVED | CLOSED
+  type        String   @default("SUPPORT") // SUPPORT (dari user) | REPORT_STORE (dari publik)
+  targetId    String?  // ID Tenant yang dilaporkan (jika type = REPORT_STORE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Konfigurasi Global Sistem (Admin Only)
+model SystemConfig {
+  key       String   @id // e.g., "WHATSAPP_SYSTEM_ENABLED"
+  value     String   // e.g., "true", "false"
+  updatedAt DateTime @updatedAt
+}
+
+// Riwayat Pengiriman WhatsApp (Monitoring)
+model WhatsappLog {
+  id        String   @id @default(uuid())
+  tenantId  String?  // null berarti ini pesan Sistem (Platform)
+  orderId   String?  // Jika terkait dengan suatu pesanan
+  phone     String   // Nomor tujuan
+  message   String   // Isi teks
+  sentBy    String   // "SYSTEM" | "TENANT"
+  status    String   // "SUCCESS" | "FAILED"
+  createdAt DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+}
