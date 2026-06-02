@@ -8,8 +8,10 @@ const core_1 = require("@nestjs/core");
 const app_module_1 = require("./app.module");
 const swagger_1 = require("@nestjs/swagger");
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
+const not_found_filter_1 = require("./filters/not-found.filter");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    app.useGlobalFilters(new not_found_filter_1.NotFoundExceptionFilter());
     app.use((0, cookie_parser_1.default)());
     app.use('/api/docs', (req, res, next) => {
         const session = req.cookies['tupply_docs_session'];

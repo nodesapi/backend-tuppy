@@ -5,27 +5,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AppController = void 0;
+exports.NotFoundExceptionFilter = void 0;
 const common_1 = require("@nestjs/common");
-const app_service_1 = require("./app.service");
-let AppController = class AppController {
-    appService;
-    constructor(appService) {
-        this.appService = appService;
-    }
-    getHello(res) {
-        const html403 = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+let NotFoundExceptionFilter = class NotFoundExceptionFilter {
+    catch(exception, host) {
+        const ctx = host.switchToHttp();
+        const response = ctx.getResponse();
+        const status = exception.getStatus();
+        const html404 = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
-<title>403 - Forbidden: Access is denied.</title>
+<title>404 - File or directory not found.</title>
 <style type="text/css">
 <!--
 body{margin:0;font-size:.7em;font-family:Verdana, Arial, Helvetica, sans-serif;background:#EEEEEE;}
@@ -44,25 +36,17 @@ background-color:#555555;}
 <div id="header"><h1>Server Error</h1></div>
 <div id="content">
  <div class="content-container"><fieldset>
-  <h2>403 - Forbidden: Access is denied.</h2>
-  <h3>You do not have permission to view this directory or page using the credentials that you supplied.</h3>
+  <h2>404 - File or directory not found.</h2>
+  <h3>The resource you are looking for might have been removed, had its name changed, or is temporarily unavailable.</h3>
  </fieldset></div>
 </div>
 </body>
 </html>`;
-        return res.status(403).type('text/html').send(html403);
+        response.status(status).type('text/html').send(html404);
     }
 };
-exports.AppController = AppController;
-__decorate([
-    (0, common_1.Get)(),
-    __param(0, (0, common_1.Res)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
-], AppController.prototype, "getHello", null);
-exports.AppController = AppController = __decorate([
-    (0, common_1.Controller)(),
-    __metadata("design:paramtypes", [app_service_1.AppService])
-], AppController);
-//# sourceMappingURL=app.controller.js.map
+exports.NotFoundExceptionFilter = NotFoundExceptionFilter;
+exports.NotFoundExceptionFilter = NotFoundExceptionFilter = __decorate([
+    (0, common_1.Catch)(common_1.NotFoundException)
+], NotFoundExceptionFilter);
+//# sourceMappingURL=not-found.filter.js.map

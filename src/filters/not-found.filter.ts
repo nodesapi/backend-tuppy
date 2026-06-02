@@ -1,25 +1,18 @@
-/**
- * Nama Aplikasi : tupp.ly
- * Fungsi File   : File konfigurasi / logika bisnis untuk app.controller.ts
- * Pembuat       : Wahyu Suhandi
- * GitHub        : https://github.com/nodesapi
- */
-
-import { Controller, Get, Res } from '@nestjs/common';
+import { ExceptionFilter, Catch, ArgumentsHost, NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
-import { AppService } from './app.service';
 
-@Controller()
-export class AppController {
-  constructor(private readonly appService: AppService) {}
+@Catch(NotFoundException)
+export class NotFoundExceptionFilter implements ExceptionFilter {
+  catch(exception: NotFoundException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const status = exception.getStatus();
 
-  @Get()
-  getHello(@Res() res: Response) {
-    const html403 = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+    const html404 = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
-<title>403 - Forbidden: Access is denied.</title>
+<title>404 - File or directory not found.</title>
 <style type="text/css">
 <!--
 body{margin:0;font-size:.7em;font-family:Verdana, Arial, Helvetica, sans-serif;background:#EEEEEE;}
@@ -38,13 +31,13 @@ background-color:#555555;}
 <div id="header"><h1>Server Error</h1></div>
 <div id="content">
  <div class="content-container"><fieldset>
-  <h2>403 - Forbidden: Access is denied.</h2>
-  <h3>You do not have permission to view this directory or page using the credentials that you supplied.</h3>
+  <h2>404 - File or directory not found.</h2>
+  <h3>The resource you are looking for might have been removed, had its name changed, or is temporarily unavailable.</h3>
  </fieldset></div>
 </div>
 </body>
 </html>`;
 
-    return res.status(403).type('text/html').send(html403);
+    response.status(status).type('text/html').send(html404);
   }
 }
