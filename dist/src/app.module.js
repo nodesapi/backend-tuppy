@@ -35,6 +35,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             serve_static_1.ServeStaticModule.forRoot({
                 rootPath: (0, path_1.join)(process.cwd(), 'public'),
+                serveRoot: '/public',
             }),
             prisma_module_1.PrismaModule,
             users_module_1.UsersModule,

@@ -30,6 +30,7 @@ import { DocsModule } from './docs/docs.module';
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
+      serveRoot: '/public',
     }),
     PrismaModule,
     UsersModule,
