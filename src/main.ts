@@ -13,6 +13,28 @@ import cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Enable Cookie Parser
+  app.use(cookieParser());
+
+  // Protect Swagger UI with Custom Login
+  app.use('/api/docs', (req: any, res: any, next: any) => {
+    const session = req.cookies['tupply_docs_session'];
+    if (session === process.env.JWT_SECRET) {
+      next();
+    } else {
+      res.redirect('/docs/login');
+    }
+  });
+
+  app.use('/api/docs-json', (req: any, res: any, next: any) => {
+    const session = req.cookies['tupply_docs_session'];
+    if (session === process.env.JWT_SECRET) {
+      next();
+    } else {
+      res.status(401).send('Unauthorized');
+    }
+  });
+
   // Setup Swagger API Documentation
   const config = new DocumentBuilder()
     .setTitle('tupp.ly Backend API')
@@ -26,9 +48,6 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors();
-
-  // Enable Cookie Parser
-  app.use(cookieParser());
 
   await app.listen(process.env.PORT ?? 3000);
   console.log(`Application is running on: ${await app.getUrl()}`);

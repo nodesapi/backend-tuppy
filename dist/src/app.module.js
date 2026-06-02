@@ -27,13 +27,7 @@ const tickets_module_1 = require("./tickets/tickets.module");
 const whatsapp_module_1 = require("./whatsapp/whatsapp.module");
 const email_module_1 = require("./email/email.module");
 const docs_module_1 = require("./docs/docs.module");
-const docs_middleware_1 = require("./docs/docs.middleware");
 let AppModule = class AppModule {
-    configure(consumer) {
-        consumer
-            .apply(docs_middleware_1.DocsMiddleware)
-            .forRoutes('api/docs', 'api/docs-json');
-    }
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([

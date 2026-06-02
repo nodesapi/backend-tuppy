@@ -9,6 +9,25 @@ const swagger_1 = require("@nestjs/swagger");
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    app.use((0, cookie_parser_1.default)());
+    app.use('/api/docs', (req, res, next) => {
+        const session = req.cookies['tupply_docs_session'];
+        if (session === process.env.JWT_SECRET) {
+            next();
+        }
+        else {
+            res.redirect('/docs/login');
+        }
+    });
+    app.use('/api/docs-json', (req, res, next) => {
+        const session = req.cookies['tupply_docs_session'];
+        if (session === process.env.JWT_SECRET) {
+            next();
+        }
+        else {
+            res.status(401).send('Unauthorized');
+        }
+    });
     const config = new swagger_1.DocumentBuilder()
         .setTitle('tupp.ly Backend API')
         .setDescription('Dokumentasi API untuk platform tupp.ly (Zero-Fee Creator & Commerce Hub)')
@@ -18,7 +37,6 @@ async function bootstrap() {
     const document = swagger_1.SwaggerModule.createDocument(app, config);
     swagger_1.SwaggerModule.setup('api/docs', app, document);
     app.enableCors();
-    app.use((0, cookie_parser_1.default)());
     await app.listen(process.env.PORT ?? 3000);
     console.log(`Application is running on: ${await app.getUrl()}`);
     console.log(`Swagger UI is available at: ${await app.getUrl()}/api/docs`);
