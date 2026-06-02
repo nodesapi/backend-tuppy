@@ -24,6 +24,9 @@ import { AdminModule } from './admin/admin.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { EmailModule } from './email/email.module';
+import { DocsModule } from './docs/docs.module';
+import { DocsMiddleware } from './docs/docs.middleware';
+import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 
 @Module({
   imports: [
@@ -44,10 +47,17 @@ import { EmailModule } from './email/email.module';
     TicketsModule,
     WhatsappModule,
     EmailModule,
+    DocsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(DocsMiddleware)
+      .forRoutes('api/docs', 'api/docs-json');
+  }
+}
 
 // Trigger rebuild for ServeStaticModule
