@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+require("dotenv/config");
 const core_1 = require("@nestjs/core");
 const app_module_1 = require("./app.module");
 const swagger_1 = require("@nestjs/swagger");
@@ -12,7 +13,7 @@ async function bootstrap() {
     app.use((0, cookie_parser_1.default)());
     app.use('/api/docs', (req, res, next) => {
         const session = req.cookies['tupply_docs_session'];
-        if (session === process.env.JWT_SECRET) {
+        if (session && process.env.JWT_SECRET && session === process.env.JWT_SECRET) {
             next();
         }
         else {
@@ -21,7 +22,7 @@ async function bootstrap() {
     });
     app.use('/api/docs-json', (req, res, next) => {
         const session = req.cookies['tupply_docs_session'];
-        if (session === process.env.JWT_SECRET) {
+        if (session && process.env.JWT_SECRET && session === process.env.JWT_SECRET) {
             next();
         }
         else {

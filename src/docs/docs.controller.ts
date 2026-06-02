@@ -71,7 +71,8 @@ export class DocsController {
   @Get('login')
   getLoginPage(@Req() req: Request, @Res() res: Response) {
     // Jika sudah punya cookie yang valid, langsung arahkan ke docs
-    if (req.cookies['tupply_docs_session'] === process.env.JWT_SECRET) {
+    const session = req.cookies['tupply_docs_session'];
+    if (session && process.env.JWT_SECRET && session === process.env.JWT_SECRET) {
       return res.redirect('/api/docs');
     }
     return res.type('text/html').send(this.renderLoginHtml());

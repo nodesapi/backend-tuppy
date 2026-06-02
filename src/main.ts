@@ -5,6 +5,7 @@
  * GitHub        : https://github.com/nodesapi
  */
 
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -19,7 +20,7 @@ async function bootstrap() {
   // Protect Swagger UI with Custom Login
   app.use('/api/docs', (req: any, res: any, next: any) => {
     const session = req.cookies['tupply_docs_session'];
-    if (session === process.env.JWT_SECRET) {
+    if (session && process.env.JWT_SECRET && session === process.env.JWT_SECRET) {
       next();
     } else {
       res.redirect('/docs/login');
@@ -28,7 +29,7 @@ async function bootstrap() {
 
   app.use('/api/docs-json', (req: any, res: any, next: any) => {
     const session = req.cookies['tupply_docs_session'];
-    if (session === process.env.JWT_SECRET) {
+    if (session && process.env.JWT_SECRET && session === process.env.JWT_SECRET) {
       next();
     } else {
       res.status(401).send('Unauthorized');
