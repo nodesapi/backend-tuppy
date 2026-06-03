@@ -11,7 +11,8 @@ export class SubscriptionsService {
   ) {}
 
   async getPaymentChannels() {
-    return this.payhookService.getChannels();
+    const channels = await this.payhookService.getChannels();
+    return { success: true, data: channels };
   }
 
   async getCheckout(userId: string, invoiceId: string) {
@@ -31,7 +32,8 @@ export class SubscriptionsService {
       pay_amount: subscription.amount,
       payment_instruction: subscription.paymentInstruction,
       amount: subscription.amount,
-      status: subscription.status
+      status: subscription.status,
+      plan: subscription.plan
     };
   }
 
