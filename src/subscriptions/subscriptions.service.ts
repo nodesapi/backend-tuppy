@@ -27,17 +27,60 @@ export class SubscriptionsService {
 
     let paymentInstruction: any = subscription.paymentInstruction || {};
     
-    // Auto-heal old invoices that don't have pay_amount saved
-    if (!paymentInstruction.pay_amount && subscription.invoiceUrl) {
+    // Auto-heal old invoices that don't have pay_amount saved OR actively check status if PENDING
+    if (subscription.status !== 'PAID' && subscription.invoiceUrl) {
       const payhookInvoice = await this.payhookService.getInvoice(subscription.invoiceUrl);
-      if (payhookInvoice && payhookInvoice.pay_amount) {
-        paymentInstruction.pay_amount = payhookInvoice.pay_amount;
-        
-        // Save it back to DB so we don't have to fetch again
-        await this.prisma.subscription.update({
-          where: { id: subscription.id },
-          data: { paymentInstruction }
-        });
+      
+      if (payhookInvoice) {
+        let needsUpdate = false;
+
+        // Auto-heal pay_amount
+        if (!paymentInstruction.pay_amount && payhookInvoice.pay_amount) {
+          paymentInstruction.pay_amount = payhookInvoice.pay_amount;
+          needsUpdate = true;
+        }
+
+        // Active Webhook Fallback: If Payhook says it's PAID, but we are still PENDING
+        if ((payhookInvoice.status === 'paid' || payhookInvoice.status === 'success') && subscription.status !== 'PAID') {
+          // Trigger the fulfillment logic just like a webhook would
+          await this.prisma.$transaction(async (tx) => {
+            await tx.subscription.update({
+              where: { id: subscription.id },
+              data: { status: 'PAID', paidAt: new Date(), paymentInstruction }
+            });
+            const t = await tx.tenant.findUnique({ where: { id: subscription.tenantId } });
+            if (t) {
+              const currentExpiry = t.premiumUntil && t.premiumUntil > new Date() ? t.premiumUntil : new Date();
+              const additionalMonths = subscription.plan === 'YEARLY' ? 12 : 1;
+              const newExpiry = new Date(currentExpiry);
+              newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
+              await tx.tenant.update({
+                where: { id: t.id },
+                data: { isPremium: true, premiumUntil: newExpiry }
+              });
+            }
+          });
+          
+          // Return immediately with the updated status
+          return {
+            success: true,
+            subscriptionId: subscription.id,
+            invoiceId: subscription.invoiceUrl,
+            pay_amount: paymentInstruction.pay_amount || subscription.amount,
+            payment_instruction: paymentInstruction,
+            amount: subscription.amount,
+            status: 'PAID',
+            plan: subscription.plan
+          };
+        }
+
+        // If it's not paid but we needed to update the paymentInstruction
+        if (needsUpdate) {
+          await this.prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { paymentInstruction }
+          });
+        }
       }
     }
 
