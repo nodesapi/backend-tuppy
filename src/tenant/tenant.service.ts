@@ -121,4 +121,41 @@ export class TenantService {
 
     throw new BadRequestException('Gagal mengunggah QRIS ke server Payhook.');
   }
+
+  async provisionPaymentAccount(userId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { userId },
+      include: { user: true }
+    });
+
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    if (!tenant.isPremium) throw new BadRequestException('Hanya pengguna Premium yang dapat mengaktifkan fitur ini.');
+    if (tenant.payhookTenantId) throw new BadRequestException('Akun Payhook sudah diaktifkan.');
+
+    try {
+      const payhookData = await this.payhookService.provisionPayhookAccount({
+        name: tenant.displayName || tenant.username,
+        email: tenant.user.email,
+        phone: tenant.waPhoneNumber || undefined,
+        password_hash: tenant.user.password,
+        domain: tenant.customDomain || undefined,
+      });
+
+      if (payhookData && payhookData.tenant_id) {
+        const updated = await this.prisma.tenant.update({
+          where: { id: tenant.id },
+          data: {
+            payhookTenantId: String(payhookData.tenant_id),
+            payhookApiKey: payhookData.api_key_production
+          }
+        });
+        return { success: true, message: 'Integrasi Payhook berhasil diaktifkan.', tenant: updated };
+      }
+
+      throw new Error('Data tidak lengkap dari Payhook');
+    } catch (err: any) {
+      console.error('Failed manual provisioning:', err.message);
+      throw new BadRequestException('Gagal mengaktifkan integrasi Payhook. Pastikan server Payhook berjalan.');
+    }
+  }
 }

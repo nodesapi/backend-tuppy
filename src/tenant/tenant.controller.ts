@@ -74,4 +74,9 @@ export class TenantController {
     if (!file) throw new BadRequestException('No file uploaded');
     return this.tenantService.uploadQrisToPayhook(req.user.id, file);
   }
+
+  @Post('payment/provision')
+  async provisionPaymentAccount(@Request() req: any) {
+    return this.tenantService.provisionPaymentAccount(req.user.id);
+  }
 }
