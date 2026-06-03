@@ -26,6 +26,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { EmailModule } from './email/email.module';
 import { DocsModule } from './docs/docs.module';
 import { WebhookModule } from './webhook/webhook.module';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { WebhookModule } from './webhook/webhook.module';
     EmailModule,
     DocsModule,
     WebhookModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

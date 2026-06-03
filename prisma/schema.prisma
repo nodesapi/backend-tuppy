@@ -59,6 +59,7 @@ model Tenant {
   bankName       String?
   bankAccount    String?
   bankAccountName String?
+  storageUsed    Float     @default(0) // Kapasitas penyimpanan terpakai dalam Bytes
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -232,14 +233,16 @@ model Order {
 
 // Item per Order
 model OrderItem {
-  id          String  @id @default(uuid())
-  orderId     String
-  blockId     String? // Opsional: block bisa dihapus tapi data tetap ada
-  productName String
-  imageUrl    String?
-  price       Float
-  quantity    Int
-  subtotal    Float   // price * quantity
+  id               String  @id @default(uuid())
+  orderId          String
+  blockId          String? // Opsional: block bisa dihapus tapi data tetap ada
+  productName      String
+  imageUrl         String?
+  price            Float
+  quantity         Int
+  subtotal         Float   // price * quantity
+  isDigital        Boolean @default(false)
+  digitalFileId    String? // ID file dari Google Drive
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }

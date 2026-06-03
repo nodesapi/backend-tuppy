@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { EmailService } from '../email/email.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './dto/create-order.dto';
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class OrdersService {
@@ -52,7 +53,7 @@ export class OrdersService {
 
       // Buat semua OrderItem
       await tx.orderItem.createMany({
-        data: items.map((item) => ({
+        data: items.map((item: any) => ({
           orderId: order.id,
           blockId: item.blockId,
           productName: item.productName,
@@ -60,6 +61,8 @@ export class OrdersService {
           price: item.price,
           quantity: item.quantity,
           subtotal: item.price * item.quantity,
+          isDigital: item.isDigital || false,
+          digitalFileId: item.digitalFileId || null,
         })),
       });
 
@@ -130,7 +133,24 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order tidak ditemukan.');
 
-    return order;
+    // Generate Download Tokens for Digital Items if Paid
+    let downloadTokens: any[] = [];
+    if (order.status === 'DELIVERED' || order.status === 'PROCESSING' || order.status === 'CONFIRMED') {
+      const digitalItems = order.items.filter((item: any) => item.isDigital && item.digitalFileId);
+      const secret = process.env.JWT_SECRET || 'tupply-secure-download-secret-12345';
+      
+      downloadTokens = digitalItems.map(item => ({
+        itemId: item.id,
+        productName: item.productName,
+        token: jwt.sign({
+          orderId: order.id,
+          productId: item.id,
+          driveFileId: item.digitalFileId
+        }, secret, { expiresIn: '5m' })
+      }));
+    }
+
+    return { ...order, downloadTokens };
   }
 
   async updateOrderStatus(orderId: string, dto: UpdateOrderStatusDto, userId: string) {
@@ -235,6 +255,23 @@ export class OrdersService {
       throw new BadRequestException('Nomor WhatsApp tidak cocok dengan pesanan ini');
     }
 
-    return order;
+    // Generate Download Tokens for Digital Items if Paid
+    let downloadTokens: any[] = [];
+    if (order.status === 'DELIVERED' || order.status === 'PROCESSING' || order.status === 'CONFIRMED') {
+      const digitalItems = order.items.filter((item: any) => item.isDigital && item.digitalFileId);
+      const secret = process.env.JWT_SECRET || 'tupply-secure-download-secret-12345';
+      
+      downloadTokens = digitalItems.map(item => ({
+        itemId: item.id,
+        productName: item.productName,
+        token: jwt.sign({
+          orderId: order.id,
+          productId: item.id,
+          driveFileId: item.digitalFileId
+        }, secret, { expiresIn: '5m' })
+      }));
+    }
+
+    return { ...order, downloadTokens };
   }
 }
