@@ -25,12 +25,28 @@ export class SubscriptionsService {
 
     if (!subscription) throw new NotFoundException('Invoice not found');
 
+    let paymentInstruction: any = subscription.paymentInstruction || {};
+    
+    // Auto-heal old invoices that don't have pay_amount saved
+    if (!paymentInstruction.pay_amount && subscription.invoiceUrl) {
+      const payhookInvoice = await this.payhookService.getInvoice(subscription.invoiceUrl);
+      if (payhookInvoice && payhookInvoice.pay_amount) {
+        paymentInstruction.pay_amount = payhookInvoice.pay_amount;
+        
+        // Save it back to DB so we don't have to fetch again
+        await this.prisma.subscription.update({
+          where: { id: subscription.id },
+          data: { paymentInstruction }
+        });
+      }
+    }
+
     return {
       success: true,
       subscriptionId: subscription.id,
       invoiceId: subscription.invoiceUrl,
-      pay_amount: (subscription.paymentInstruction as any)?.pay_amount || subscription.amount,
-      payment_instruction: subscription.paymentInstruction,
+      pay_amount: paymentInstruction.pay_amount || subscription.amount,
+      payment_instruction: paymentInstruction,
       amount: subscription.amount,
       status: subscription.status,
       plan: subscription.plan

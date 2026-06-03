@@ -43,6 +43,29 @@ export class PayhookService {
     }
   }
 
+  async getInvoice(invoiceNumber: string) {
+    if (!this.apiKey) {
+      throw new HttpException('Payment Gateway configuration is missing', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    
+    try {
+      const response = await axios.get(`${this.baseUrl}/api/v1/invoices/${invoiceNumber}`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (response.data && response.data.success) {
+        return response.data.data;
+      }
+      return null;
+    } catch (error: any) {
+      this.logger.error(`Error calling Payhook API getInvoice: ${error.message}`);
+      return null;
+    }
+  }
+
   async getChannels() {
     if (!this.apiKey) {
       this.logger.error('PAYHOOK_API_KEY is not defined in environment variables');
