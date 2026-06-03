@@ -13,7 +13,7 @@ export class PayhookService {
     customer_email?: string;
     external_id: string;
     description: string;
-    channel_type?: string;
+    payment_channel_id?: number;
   }) {
     if (!this.apiKey) {
       this.logger.error('PAYHOOK_API_KEY is not defined in environment variables');
@@ -40,6 +40,31 @@ export class PayhookService {
         this.logger.error(`Payhook Response: ${JSON.stringify(error.response.data)}`);
       }
       throw new HttpException('Failed to communicate with Payment Gateway', HttpStatus.BAD_GATEWAY);
+    }
+  }
+
+  async getChannels() {
+    if (!this.apiKey) {
+      this.logger.error('PAYHOOK_API_KEY is not defined in environment variables');
+      throw new HttpException('Payment Gateway configuration is missing', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    try {
+      const response = await axios.get(`${this.baseUrl}/api/v1/channels`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (response.data && response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data?.message || 'Failed to fetch payment channels');
+      }
+    } catch (error: any) {
+      this.logger.error(`Error calling Payhook API channels: ${error.message}`);
+      throw new HttpException('Failed to fetch payment channels', HttpStatus.BAD_GATEWAY);
     }
   }
 }

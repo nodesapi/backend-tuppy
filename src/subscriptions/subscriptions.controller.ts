@@ -7,9 +7,21 @@ export class SubscriptionsController {
   constructor(private readonly subscriptionsService: SubscriptionsService) {}
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('channels')
+  getPaymentChannels() {
+    return this.subscriptionsService.getPaymentChannels();
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('checkout/:invoiceId')
+  getCheckout(@Request() req: any, @Param('invoiceId') invoiceId: string) {
+    return this.subscriptionsService.getCheckout(req.user.id, invoiceId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Post('checkout')
-  createCheckout(@Request() req: any, @Body() body: { plan: 'MONTHLY' | 'YEARLY' }) {
-    return this.subscriptionsService.createCheckout(req.user.id, body.plan);
+  createCheckout(@Request() req: any, @Body() body: { plan: 'MONTHLY' | 'YEARLY', channelId: number }) {
+    return this.subscriptionsService.createCheckout(req.user.id, body.plan, body.channelId);
   }
 
   @UseGuards(AuthGuard('jwt'))

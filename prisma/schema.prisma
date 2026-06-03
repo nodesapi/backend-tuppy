@@ -147,8 +147,9 @@ model Subscription {
   plan        String    // "MONTHLY" | "YEARLY"
   amount      Float
   status      String    // "PENDING", "PAID", "FAILED"
-  invoiceUrl  String?
-  referenceId String?
+  invoiceUrl          String?
+  referenceId         String?
+  paymentInstruction  Json?
   createdAt   DateTime  @default(now())
   paidAt      DateTime?
 

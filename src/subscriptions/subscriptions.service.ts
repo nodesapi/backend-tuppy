@@ -10,7 +10,32 @@ export class SubscriptionsService {
     private readonly payhookService: PayhookService
   ) {}
 
-  async createCheckout(userId: string, plan: 'MONTHLY' | 'YEARLY') {
+  async getPaymentChannels() {
+    return this.payhookService.getChannels();
+  }
+
+  async getCheckout(userId: string, invoiceId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { tenantId: tenant.id, invoiceUrl: invoiceId }
+    });
+
+    if (!subscription) throw new NotFoundException('Invoice not found');
+
+    return {
+      success: true,
+      subscriptionId: subscription.id,
+      invoiceId: subscription.invoiceUrl,
+      pay_amount: subscription.amount,
+      payment_instruction: subscription.paymentInstruction,
+      amount: subscription.amount,
+      status: subscription.status
+    };
+  }
+
+  async createCheckout(userId: string, plan: 'MONTHLY' | 'YEARLY', channelId: number) {
     const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
@@ -34,13 +59,16 @@ export class SubscriptionsService {
       customer_name: tenant.displayName || tenant.username, // Use displayName or username
       external_id: referenceId,
       description: `Upgrade to ${plan} Premium Plan for Tupply`,
-      // Provide channel_type if we have a specific UI channel selection, otherwise let Payhook default
+      payment_channel_id: channelId,
     });
 
-    // Update the subscription with the Payhook invoice number
+    // Update the subscription with the Payhook invoice number and payment instruction
     await this.prisma.subscription.update({
       where: { id: subscription.id },
-      data: { invoiceUrl: invoice.invoice_number } // store invoice_number instead of URL
+      data: { 
+        invoiceUrl: invoice.invoice_number,
+        paymentInstruction: invoice.payment_instruction as any
+      } 
     });
 
     return {
