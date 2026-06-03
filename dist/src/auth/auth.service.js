@@ -56,11 +56,15 @@ let AuthService = class AuthService {
     }
     async validateUser(email, pass) {
         const user = await this.usersService.findByEmail(email);
-        if (user && await bcrypt.compare(pass, user.password)) {
-            const { password, ...result } = user;
-            return result;
+        if (!user) {
+            throw new common_1.UnauthorizedException('Email belum terdaftar');
         }
-        return null;
+        const isPasswordValid = await bcrypt.compare(pass, user.password);
+        if (!isPasswordValid) {
+            throw new common_1.UnauthorizedException('Password salah');
+        }
+        const { password, ...result } = user;
+        return result;
     }
     async login(user) {
         const payload = { email: user.email, sub: user.id, role: user.role };

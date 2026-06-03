@@ -23,8 +23,19 @@ let UsersService = class UsersService {
         });
     }
     async create(data) {
+        const randomSuffix = Math.random().toString(36).substring(2, 8);
+        const defaultUsername = `user_${randomSuffix}`;
         return this.prisma.user.create({
-            data,
+            data: {
+                ...data,
+                tenant: {
+                    create: {
+                        username: defaultUsername,
+                        displayName: 'My Profile',
+                        notifMethod: 'EMAIL',
+                    }
+                }
+            },
         });
     }
 };

@@ -13,6 +13,8 @@ import { Prisma, User } from '@prisma/client';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+
+
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: { email },
@@ -20,8 +22,20 @@ export class UsersService {
   }
 
   async create(data: Prisma.UserCreateInput): Promise<User> {
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const defaultUsername = `user_${randomSuffix}`;
+
     return this.prisma.user.create({
-      data,
+      data: {
+        ...data,
+        tenant: {
+          create: {
+            username: defaultUsername,
+            displayName: 'My Profile',
+            notifMethod: 'EMAIL',
+          }
+        }
+      },
     });
   }
 }
