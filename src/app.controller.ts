@@ -8,10 +8,22 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { AppService } from './app.service';
+import { PrismaService } from './prisma/prisma.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly prisma: PrismaService
+  ) {}
+
+  @Get('config')
+  async getPublicConfig() {
+    const configs = await this.prisma.systemConfig.findMany();
+    const configMap: Record<string, string> = {};
+    configs.forEach(c => configMap[c.key] = c.value);
+    return configMap;
+  }
 
   @Get()
   getHello(@Res() res: Response) {
