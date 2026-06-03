@@ -49,6 +49,12 @@ model Tenant {
   // Payment Gateway (Premium Only)
   pgProvider     String?   // "MIDTRANS" | "XENDIT" | null
   pgApiKey       String?   // Encrypted on deploy
+  
+  // Payhook / Direct Payment Integration (Premium Only)
+  payhookTenantId String?
+  payhookApiKey   String?
+  payhookQrisUrl  String?
+
   bankName       String?
   bankAccount    String?
   bankAccountName String?

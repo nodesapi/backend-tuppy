@@ -8,5 +8,6 @@ import { PayhookService } from './payhook.service';
   imports: [PrismaModule],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService, PayhookService],
+  exports: [PayhookService],
 })
 export class SubscriptionsModule {}

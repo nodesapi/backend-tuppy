@@ -43,7 +43,7 @@ export class SubscriptionsService {
         // Active Webhook Fallback: If Payhook says it's PAID, but we are still PENDING
         if ((payhookInvoice.status === 'paid' || payhookInvoice.status === 'success') && subscription.status !== 'PAID') {
           // Trigger the fulfillment logic just like a webhook would
-          await this.prisma.$transaction(async (tx) => {
+          const updatedTenant = await this.prisma.$transaction(async (tx) => {
             await tx.subscription.update({
               where: { id: subscription.id },
               data: { status: 'PAID', paidAt: new Date(), paymentInstruction }
@@ -54,12 +54,39 @@ export class SubscriptionsService {
               const additionalMonths = subscription.plan === 'YEARLY' ? 12 : 1;
               const newExpiry = new Date(currentExpiry);
               newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
-              await tx.tenant.update({
+              return tx.tenant.update({
                 where: { id: t.id },
-                data: { isPremium: true, premiumUntil: newExpiry }
+                data: { isPremium: true, premiumUntil: newExpiry },
+                include: { user: true }
               });
             }
+            return null;
           });
+
+          // Trigger Payhook Provisioning if not already provisioned
+          if (updatedTenant && updatedTenant.user && !updatedTenant.payhookTenantId) {
+            try {
+              const payhookData = await this.payhookService.provisionPayhookAccount({
+                name: updatedTenant.displayName || updatedTenant.username,
+                email: updatedTenant.user.email,
+                phone: updatedTenant.waPhoneNumber || undefined,
+                password_hash: updatedTenant.user.password,
+                domain: updatedTenant.customDomain || undefined,
+              });
+
+              if (payhookData && payhookData.tenant_id) {
+                await this.prisma.tenant.update({
+                  where: { id: updatedTenant.id },
+                  data: {
+                    payhookTenantId: String(payhookData.tenant_id),
+                    payhookApiKey: payhookData.api_key_production
+                  }
+                });
+              }
+            } catch (err: any) {
+              console.error('Failed to provision Payhook account on getCheckout:', err.message);
+            }
+          }
           
           // Return immediately with the updated status
           return {
@@ -162,7 +189,7 @@ export class SubscriptionsService {
     if (subscription.status === 'PAID') return { message: 'Already paid' };
 
     // 3. Eksekusi Fulfillment dengan Transaction
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Update status tagihan jadi lunas
       await tx.subscription.update({
         where: { id: subscription.id },
@@ -182,16 +209,46 @@ export class SubscriptionsService {
       newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
 
       // Aktifkan premium di Tenant
-      await tx.tenant.update({
+      const updatedTenant = await tx.tenant.update({
         where: { id: subscription.tenantId },
         data: {
           isPremium: true,
           premiumUntil: newExpiry
-        }
+        },
+        include: { user: true }
       });
 
-      return { success: true, message: 'Premium activated' };
+      return { success: true, message: 'Premium activated', tenant: updatedTenant };
     });
+
+    // Jalankan integrasi eksternal setelah transaksi DB selesai dengan sukses
+    try {
+      if (result.tenant && result.tenant.user && !result.tenant.payhookTenantId) {
+        const payhookData = await this.payhookService.provisionPayhookAccount({
+          name: result.tenant.displayName || result.tenant.username,
+          email: result.tenant.user.email,
+          phone: result.tenant.waPhoneNumber || undefined,
+          password_hash: result.tenant.user.password, // Mengirim password_hash dari Tupply
+          domain: result.tenant.customDomain || undefined,
+        });
+
+        if (payhookData && payhookData.tenant_id) {
+          // Update tenant dengan data dari Payhook
+          await this.prisma.tenant.update({
+            where: { id: result.tenant.id },
+            data: {
+              payhookTenantId: String(payhookData.tenant_id),
+              payhookApiKey: payhookData.api_key_production
+            }
+          });
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to provision Payhook account on webhook:', err.message);
+      // We don't throw here because Premium is already activated
+    }
+
+    return { success: true, message: result.message };
   }
 
   // Mengembalikan status premium saat ini (untuk UI Frontend)

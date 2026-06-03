@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { promises as dns } from 'dns';
+import { PayhookService } from '../subscriptions/payhook.service';
 
 @Injectable()
 export class TenantService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private payhookService: PayhookService
+  ) {}
 
   async getTenantByUserId(userId: string) {
     const tenant = await this.prisma.tenant.findUnique({
@@ -95,5 +99,26 @@ export class TenantService {
         message: 'Domain belum terhubung. Pastikan pengaturan DNS sudah benar dan tunggu masa propagasi (5 menit hingga 24 jam).' 
       };
     }
+  }
+
+  async uploadQrisToPayhook(userId: string, file: Express.Multer.File) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    if (!tenant.isPremium) throw new BadRequestException('QRIS statis hanya untuk pengguna Premium.');
+    if (!tenant.payhookTenantId) throw new BadRequestException('Akun Payhook belum diprovisioning. Harap hubungi admin.');
+
+    // Upload to Payhook Server
+    const payhookData = await this.payhookService.uploadQris(tenant.payhookTenantId, file);
+
+    // Update the QRIS URL in Tupply Database
+    if (payhookData && payhookData.qris_url) {
+      await this.prisma.tenant.update({
+        where: { id: tenant.id },
+        data: { payhookQrisUrl: payhookData.qris_url }
+      });
+      return { success: true, qrisUrl: payhookData.qris_url };
+    }
+
+    throw new BadRequestException('Gagal mengunggah QRIS ke server Payhook.');
   }
 }

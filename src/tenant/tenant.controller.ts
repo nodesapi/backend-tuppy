@@ -56,4 +56,22 @@ export class TenantController {
     
     return { avatarUrl };
   }
+
+  @Post('payment/qris')
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: (req, file, cb) => {
+      if (!file.originalname.match(/\.(jpg|jpeg|png)$/i)) {
+        return cb(new BadRequestException('Only JPG and PNG images are allowed for QRIS!'), false);
+      }
+      cb(null, true);
+    }
+  }))
+  async uploadQris(
+    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File
+  ) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    return this.tenantService.uploadQrisToPayhook(req.user.id, file);
+  }
 }
