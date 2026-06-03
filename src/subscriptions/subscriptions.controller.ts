@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Param } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -22,5 +22,17 @@ export class SubscriptionsController {
   @Post('webhook')
   handleWebhook(@Body() payload: any) {
     return this.subscriptionsService.handleWebhook(payload);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('history')
+  getHistory(@Request() req: any) {
+    return this.subscriptionsService.getHistory(req.user.id);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('invoice/:id')
+  getInvoiceDetail(@Request() req: any, @Param('id') invoiceId: string) {
+    return this.subscriptionsService.getInvoiceDetail(req.user.id, invoiceId);
   }
 }

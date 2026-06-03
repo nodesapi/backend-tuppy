@@ -66,4 +66,24 @@ export class AdminService {
       data: { status }
     });
   }
+
+  async getGlobalConfig() {
+    const configs = await this.prisma.systemConfig.findMany();
+    const configMap: Record<string, string> = {};
+    configs.forEach(c => configMap[c.key] = c.value);
+    return configMap;
+  }
+
+  async updateGlobalConfig(userId: string, data: Record<string, string>) {
+    await this.ensureAdmin(userId);
+    const updates = Object.entries(data).map(([key, value]) => {
+      return this.prisma.systemConfig.upsert({
+        where: { key },
+        update: { value: String(value) },
+        create: { key, value: String(value) }
+      });
+    });
+    await this.prisma.$transaction(updates);
+    return { success: true, message: 'Configuration updated successfully' };
+  }
 }

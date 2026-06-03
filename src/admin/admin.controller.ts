@@ -39,4 +39,18 @@ export class AdminController {
   ) {
     return this.adminService.updateTicketStatus(req.user.id, ticketId, status);
   }
+
+  @Get('config')
+  getGlobalConfig() {
+    // Accessible by any admin (or even public if moved to app, but this is admin scoped for now)
+    return this.adminService.getGlobalConfig();
+  }
+
+  @Patch('config')
+  updateGlobalConfig(
+    @Request() req: any,
+    @Body() body: Record<string, string>
+  ) {
+    return this.adminService.updateGlobalConfig(req.user.id, body);
+  }
 }

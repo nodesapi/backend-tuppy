@@ -122,4 +122,33 @@ export class SubscriptionsService {
       premiumUntil: tenant.premiumUntil
     };
   }
+
+  async getHistory(userId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    return this.prisma.subscription.findMany({
+      where: { tenantId: tenant.id },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async getInvoiceDetail(userId: string, invoiceId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        tenantId: tenant.id,
+        id: invoiceId
+      },
+      include: {
+        tenant: true
+      }
+    });
+
+    if (!subscription) throw new NotFoundException('Invoice not found');
+
+    return subscription;
+  }
 }
