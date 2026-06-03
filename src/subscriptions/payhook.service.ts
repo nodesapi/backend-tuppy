@@ -99,6 +99,8 @@ export class PayhookService {
     phone?: string;
     password_hash: string;
     domain?: string;
+    expired_at?: string;
+    callback_url?: string;
   }) {
     try {
       const response = await axios.post(`${this.baseUrl}/api/internal/tupply/merchants`, payload, {

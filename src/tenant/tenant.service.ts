@@ -139,6 +139,10 @@ export class TenantService {
         phone: tenant.waPhoneNumber || undefined,
         password_hash: tenant.user.password,
         domain: tenant.customDomain || undefined,
+        expired_at: tenant.premiumUntil ? tenant.premiumUntil.toISOString() : undefined,
+        callback_url: process.env.PUBLIC_APP_URL 
+          ? `${process.env.PUBLIC_APP_URL}/api/webhook/payhook` 
+          : undefined,
       });
 
       if (payhookData && payhookData.tenant_id) {
