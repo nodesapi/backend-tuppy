@@ -16,8 +16,13 @@ export class TenantController {
   }
 
   @Patch()
-  updateTenant(@Request() req: any, @Body() data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; notifMethod?: string }) {
+  updateTenant(@Request() req: any, @Body() data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; notifMethod?: string; customDomain?: string; seoConfig?: any }) {
     return this.tenantService.updateTenant(req.user.id, data);
+  }
+
+  @Get('verify-domain')
+  verifyDomain(@Request() req: any) {
+    return this.tenantService.verifyDomain(req.user.id);
   }
 
   @Post('upload-avatar')

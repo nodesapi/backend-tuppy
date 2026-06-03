@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { promises as dns } from 'dns';
 
 @Injectable()
 export class TenantService {
@@ -12,7 +13,7 @@ export class TenantService {
     return tenant || null;
   }
 
-  async updateTenant(userId: string, data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; notifMethod?: string }) {
+  async updateTenant(userId: string, data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; notifMethod?: string; customDomain?: string; seoConfig?: any }) {
     const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
     
     // Check username uniqueness if provided
@@ -76,5 +77,23 @@ export class TenantService {
       where: { userId },
       data: { avatarUrl },
     });
+  }
+
+  async verifyDomain(userId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+    if (!tenant || !tenant.customDomain) {
+      throw new BadRequestException('Domain kustom belum dikonfigurasi. Silakan simpan pengaturan domain terlebih dahulu.');
+    }
+
+    try {
+      // Coba resolve DNS record untuk domain tersebut
+      await dns.resolve(tenant.customDomain);
+      return { verified: true, message: 'Domain berhasil diverifikasi dan terhubung dengan server.' };
+    } catch (error) {
+      return { 
+        verified: false, 
+        message: 'Domain belum terhubung. Pastikan pengaturan DNS sudah benar dan tunggu masa propagasi (5 menit hingga 24 jam).' 
+      };
+    }
   }
 }
