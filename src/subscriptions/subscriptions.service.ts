@@ -29,7 +29,7 @@ export class SubscriptionsService {
       success: true,
       subscriptionId: subscription.id,
       invoiceId: subscription.invoiceUrl,
-      pay_amount: subscription.amount,
+      pay_amount: (subscription.paymentInstruction as any)?.pay_amount || subscription.amount,
       payment_instruction: subscription.paymentInstruction,
       amount: subscription.amount,
       status: subscription.status,
@@ -69,7 +69,10 @@ export class SubscriptionsService {
       where: { id: subscription.id },
       data: { 
         invoiceUrl: invoice.invoice_number,
-        paymentInstruction: invoice.payment_instruction as any
+        paymentInstruction: {
+          ...(typeof invoice.payment_instruction === 'object' ? invoice.payment_instruction : {}),
+          pay_amount: invoice.pay_amount
+        } as any
       } 
     });
 
