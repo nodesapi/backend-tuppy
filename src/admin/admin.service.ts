@@ -16,14 +16,35 @@ export class AdminService {
   async getDashboardStats(userId: string) {
     await this.ensureAdmin(userId);
 
-    const [totalUsers, totalPremium, totalOrders, totalTickets] = await Promise.all([
+    const [totalUsers, totalPremium, totalOrders, totalTickets, revenueAggr] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.tenant.count({ where: { isPremium: true } }),
       this.prisma.order.count(),
       this.prisma.ticket.count({ where: { status: 'OPEN' } }),
+      this.prisma.subscription.aggregate({
+        _sum: { amount: true },
+        where: { status: 'PAID' }
+      })
     ]);
 
-    return { totalUsers, totalPremium, totalOrders, openTickets: totalTickets };
+    const totalRevenue = revenueAggr._sum.amount || 0;
+
+    return { totalUsers, totalPremium, totalOrders, openTickets: totalTickets, totalRevenue };
+  }
+
+  async getAllSubscriptions(userId: string) {
+    await this.ensureAdmin(userId);
+    return this.prisma.subscription.findMany({
+      where: { status: 'PAID' },
+      include: {
+        tenant: {
+          include: {
+            user: { select: { email: true } }
+          }
+        }
+      },
+      orderBy: { paidAt: 'desc' }
+    });
   }
 
   async getAllTenants(userId: string) {

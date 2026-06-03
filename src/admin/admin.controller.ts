@@ -12,6 +12,11 @@ export class AdminController {
     return this.adminService.getDashboardStats(req.user.id);
   }
 
+  @Get('subscriptions')
+  getAllSubscriptions(@Request() req: any) {
+    return this.adminService.getAllSubscriptions(req.user.id);
+  }
+
   @Get('tenants')
   getAllTenants(@Request() req: any) {
     return this.adminService.getAllTenants(req.user.id);
