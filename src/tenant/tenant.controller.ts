@@ -11,12 +11,18 @@ export class TenantController {
   constructor(private readonly tenantService: TenantService) {}
 
   @Get()
-  getTenant(@Request() req: any) {
-    return this.tenantService.getTenantByUserId(req.user.id);
+  async getTenant(@Request() req: any) {
+    const tenant = await this.tenantService.getTenantByUserId(req.user.id);
+    return {
+      ...tenant,
+      meta: {
+        escrowEnabled: process.env.ESCROW_ENABLED === 'true'
+      }
+    };
   }
 
   @Patch()
-  updateTenant(@Request() req: any, @Body() data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; notifMethod?: string; customDomain?: string; seoConfig?: any }) {
+  updateTenant(@Request() req: any, @Body() data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; notifMethod?: string; customDomain?: string; seoConfig?: any; pgProvider?: string }) {
     return this.tenantService.updateTenant(req.user.id, data);
   }
 

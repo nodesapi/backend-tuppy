@@ -3,30 +3,37 @@ export declare class TenantController {
     private readonly tenantService;
     constructor(tenantService: TenantService);
     getTenant(req: any): Promise<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        username: string;
-        displayName: string;
-        bio: string | null;
-        avatarUrl: string | null;
-        qrCodeUrl: string | null;
-        customDomain: string | null;
-        seoConfig: import("@prisma/client/runtime/client").JsonValue | null;
-        isPremium: boolean;
-        premiumUntil: Date | null;
-        walletBalance: number;
-        notifMethod: string;
-        waPhoneNumber: string | null;
-        pgProvider: string | null;
-        pgApiKey: string | null;
-        bankName: string | null;
-        bankAccount: string | null;
-        bankAccountName: string | null;
-        isSuspended: boolean;
-        suspendReason: string | null;
-        userId: string;
-    } | null>;
+        meta: {
+            escrowEnabled: boolean;
+        };
+        id?: string | undefined;
+        createdAt?: Date | undefined;
+        updatedAt?: Date | undefined;
+        username?: string | undefined;
+        displayName?: string | undefined;
+        bio?: string | null | undefined;
+        avatarUrl?: string | null | undefined;
+        qrCodeUrl?: string | null | undefined;
+        customDomain?: string | null | undefined;
+        seoConfig?: import("@prisma/client/runtime/client").JsonValue | undefined;
+        isPremium?: boolean | undefined;
+        premiumUntil?: Date | null | undefined;
+        walletBalance?: number | undefined;
+        notifMethod?: string | undefined;
+        waPhoneNumber?: string | null | undefined;
+        pgProvider?: string | null | undefined;
+        pgApiKey?: string | null | undefined;
+        payhookTenantId?: string | null | undefined;
+        payhookApiKey?: string | null | undefined;
+        payhookWebhookSecret?: string | null | undefined;
+        payhookQrisUrl?: string | null | undefined;
+        bankName?: string | null | undefined;
+        bankAccount?: string | null | undefined;
+        bankAccountName?: string | null | undefined;
+        isSuspended?: boolean | undefined;
+        suspendReason?: string | null | undefined;
+        userId?: string | undefined;
+    }>;
     updateTenant(req: any, data: {
         username?: string;
         displayName?: string;
@@ -37,6 +44,9 @@ export declare class TenantController {
         bankAccountName?: string;
         waPhoneNumber?: string;
         notifMethod?: string;
+        customDomain?: string;
+        seoConfig?: any;
+        pgProvider?: string;
     }): Promise<{
         id: string;
         createdAt: Date;
@@ -55,6 +65,10 @@ export declare class TenantController {
         waPhoneNumber: string | null;
         pgProvider: string | null;
         pgApiKey: string | null;
+        payhookTenantId: string | null;
+        payhookApiKey: string | null;
+        payhookWebhookSecret: string | null;
+        payhookQrisUrl: string | null;
         bankName: string | null;
         bankAccount: string | null;
         bankAccountName: string | null;
@@ -62,7 +76,48 @@ export declare class TenantController {
         suspendReason: string | null;
         userId: string;
     }>;
+    verifyDomain(req: any): Promise<{
+        verified: boolean;
+        message: string;
+    }>;
     uploadAvatar(req: any, file: Express.Multer.File): Promise<{
         avatarUrl: string;
+    }>;
+    uploadQris(req: any, file: Express.Multer.File): Promise<{
+        success: boolean;
+        qrisUrl: any;
+    }>;
+    provisionPaymentAccount(req: any): Promise<{
+        success: boolean;
+        message: string;
+        tenant: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            username: string;
+            displayName: string;
+            bio: string | null;
+            avatarUrl: string | null;
+            qrCodeUrl: string | null;
+            customDomain: string | null;
+            seoConfig: import("@prisma/client/runtime/client").JsonValue | null;
+            isPremium: boolean;
+            premiumUntil: Date | null;
+            walletBalance: number;
+            notifMethod: string;
+            waPhoneNumber: string | null;
+            pgProvider: string | null;
+            pgApiKey: string | null;
+            payhookTenantId: string | null;
+            payhookApiKey: string | null;
+            payhookWebhookSecret: string | null;
+            payhookQrisUrl: string | null;
+            bankName: string | null;
+            bankAccount: string | null;
+            bankAccountName: string | null;
+            isSuspended: boolean;
+            suspendReason: string | null;
+            userId: string;
+        };
     }>;
 }

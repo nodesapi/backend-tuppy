@@ -24,6 +24,9 @@ let AdminController = class AdminController {
     getDashboardStats(req) {
         return this.adminService.getDashboardStats(req.user.id);
     }
+    getAllSubscriptions(req) {
+        return this.adminService.getAllSubscriptions(req.user.id);
+    }
     getAllTenants(req) {
         return this.adminService.getAllTenants(req.user.id);
     }
@@ -36,6 +39,12 @@ let AdminController = class AdminController {
     updateTicketStatus(req, ticketId, status) {
         return this.adminService.updateTicketStatus(req.user.id, ticketId, status);
     }
+    getGlobalConfig() {
+        return this.adminService.getGlobalConfig();
+    }
+    updateGlobalConfig(req, body) {
+        return this.adminService.updateGlobalConfig(req.user.id, body);
+    }
 };
 exports.AdminController = AdminController;
 __decorate([
@@ -45,6 +54,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getDashboardStats", null);
+__decorate([
+    (0, common_1.Get)('subscriptions'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getAllSubscriptions", null);
 __decorate([
     (0, common_1.Get)('tenants'),
     __param(0, (0, common_1.Request)()),
@@ -77,6 +93,20 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "updateTicketStatus", null);
+__decorate([
+    (0, common_1.Get)('config'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getGlobalConfig", null);
+__decorate([
+    (0, common_1.Patch)('config'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "updateGlobalConfig", null);
 exports.AdminController = AdminController = __decorate([
     (0, common_1.Controller)('admin'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

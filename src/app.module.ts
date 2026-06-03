@@ -25,6 +25,7 @@ import { TicketsModule } from './tickets/tickets.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { EmailModule } from './email/email.module';
 import { DocsModule } from './docs/docs.module';
+import { WebhookModule } from './webhook/webhook.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { DocsModule } from './docs/docs.module';
     WhatsappModule,
     EmailModule,
     DocsModule,
+    WebhookModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -21,8 +21,14 @@ let SubscriptionsController = class SubscriptionsController {
     constructor(subscriptionsService) {
         this.subscriptionsService = subscriptionsService;
     }
+    getPaymentChannels() {
+        return this.subscriptionsService.getPaymentChannels();
+    }
+    getCheckout(req, invoiceId) {
+        return this.subscriptionsService.getCheckout(req.user.id, invoiceId);
+    }
     createCheckout(req, body) {
-        return this.subscriptionsService.createCheckout(req.user.id, body.plan);
+        return this.subscriptionsService.createCheckout(req.user.id, body.plan, body.channelId);
     }
     getPremiumStatus(req) {
         return this.subscriptionsService.getPremiumStatus(req.user.id);
@@ -30,8 +36,30 @@ let SubscriptionsController = class SubscriptionsController {
     handleWebhook(payload) {
         return this.subscriptionsService.handleWebhook(payload);
     }
+    getHistory(req) {
+        return this.subscriptionsService.getHistory(req.user.id);
+    }
+    getInvoiceDetail(req, invoiceId) {
+        return this.subscriptionsService.getInvoiceDetail(req.user.id, invoiceId);
+    }
 };
 exports.SubscriptionsController = SubscriptionsController;
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Get)('channels'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "getPaymentChannels", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Get)('checkout/:invoiceId'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('invoiceId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "getCheckout", null);
 __decorate([
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Post)('checkout'),
@@ -56,6 +84,23 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], SubscriptionsController.prototype, "handleWebhook", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Get)('history'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "getHistory", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Get)('invoice/:id'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "getInvoiceDetail", null);
 exports.SubscriptionsController = SubscriptionsController = __decorate([
     (0, common_1.Controller)('subscriptions'),
     __metadata("design:paramtypes", [subscriptions_service_1.SubscriptionsService])

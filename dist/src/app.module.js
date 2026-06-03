@@ -27,6 +27,7 @@ const tickets_module_1 = require("./tickets/tickets.module");
 const whatsapp_module_1 = require("./whatsapp/whatsapp.module");
 const email_module_1 = require("./email/email.module");
 const docs_module_1 = require("./docs/docs.module");
+const webhook_module_1 = require("./webhook/webhook.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -52,6 +53,7 @@ exports.AppModule = AppModule = __decorate([
             whatsapp_module_1.WhatsappModule,
             email_module_1.EmailModule,
             docs_module_1.DocsModule,
+            webhook_module_1.WebhookModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

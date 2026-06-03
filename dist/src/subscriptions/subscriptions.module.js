@@ -20,6 +20,7 @@ exports.SubscriptionsModule = SubscriptionsModule = __decorate([
         imports: [prisma_module_1.PrismaModule],
         controllers: [subscriptions_controller_1.SubscriptionsController],
         providers: [subscriptions_service_1.SubscriptionsService, payhook_service_1.PayhookService],
+        exports: [payhook_service_1.PayhookService],
     })
 ], SubscriptionsModule);
 //# sourceMappingURL=subscriptions.module.js.map

@@ -6,19 +6,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TenantModule = void 0;
+exports.WebhookModule = void 0;
 const common_1 = require("@nestjs/common");
-const tenant_controller_1 = require("./tenant.controller");
-const tenant_service_1 = require("./tenant.service");
-const subscriptions_module_1 = require("../subscriptions/subscriptions.module");
-let TenantModule = class TenantModule {
+const webhook_controller_1 = require("./webhook.controller");
+const webhook_service_1 = require("./webhook.service");
+const prisma_module_1 = require("../prisma/prisma.module");
+const whatsapp_module_1 = require("../whatsapp/whatsapp.module");
+let WebhookModule = class WebhookModule {
 };
-exports.TenantModule = TenantModule;
-exports.TenantModule = TenantModule = __decorate([
+exports.WebhookModule = WebhookModule;
+exports.WebhookModule = WebhookModule = __decorate([
     (0, common_1.Module)({
-        imports: [subscriptions_module_1.SubscriptionsModule],
-        controllers: [tenant_controller_1.TenantController],
-        providers: [tenant_service_1.TenantService]
+        imports: [prisma_module_1.PrismaModule, whatsapp_module_1.WhatsappModule],
+        controllers: [webhook_controller_1.WebhookController],
+        providers: [webhook_service_1.WebhookService]
     })
-], TenantModule);
-//# sourceMappingURL=tenant.module.js.map
+], WebhookModule);
+//# sourceMappingURL=webhook.module.js.map

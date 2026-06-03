@@ -17,7 +17,7 @@ export class TenantService {
     return tenant || null;
   }
 
-  async updateTenant(userId: string, data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; notifMethod?: string; customDomain?: string; seoConfig?: any }) {
+  async updateTenant(userId: string, data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; notifMethod?: string; customDomain?: string; seoConfig?: any; pgProvider?: string }) {
     const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
     
     // Check username uniqueness if provided
@@ -56,6 +56,7 @@ export class TenantService {
           bankAccountName: data.bankAccountName,
           waPhoneNumber: data.waPhoneNumber,
           notifMethod: data.notifMethod || 'EMAIL',
+          pgProvider: data.pgProvider,
         },
       });
     }
@@ -150,7 +151,8 @@ export class TenantService {
           where: { id: tenant.id },
           data: {
             payhookTenantId: String(payhookData.tenant_id),
-            payhookApiKey: payhookData.api_key_production
+            payhookApiKey: payhookData.api_key_production,
+            payhookWebhookSecret: payhookData.webhook_secret
           }
         });
         return { success: true, message: 'Integrasi Payhook berhasil diaktifkan.', tenant: updated };

@@ -24,11 +24,20 @@ let TenantController = class TenantController {
     constructor(tenantService) {
         this.tenantService = tenantService;
     }
-    getTenant(req) {
-        return this.tenantService.getTenantByUserId(req.user.id);
+    async getTenant(req) {
+        const tenant = await this.tenantService.getTenantByUserId(req.user.id);
+        return {
+            ...tenant,
+            meta: {
+                escrowEnabled: process.env.ESCROW_ENABLED === 'true'
+            }
+        };
     }
     updateTenant(req, data) {
         return this.tenantService.updateTenant(req.user.id, data);
+    }
+    verifyDomain(req) {
+        return this.tenantService.verifyDomain(req.user.id);
     }
     async uploadAvatar(req, file) {
         if (!file) {
@@ -38,6 +47,14 @@ let TenantController = class TenantController {
         await this.tenantService.updateAvatar(req.user.id, avatarUrl);
         return { avatarUrl };
     }
+    async uploadQris(req, file) {
+        if (!file)
+            throw new common_1.BadRequestException('No file uploaded');
+        return this.tenantService.uploadQrisToPayhook(req.user.id, file);
+    }
+    async provisionPaymentAccount(req) {
+        return this.tenantService.provisionPaymentAccount(req.user.id);
+    }
 };
 exports.TenantController = TenantController;
 __decorate([
@@ -45,7 +62,7 @@ __decorate([
     __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], TenantController.prototype, "getTenant", null);
 __decorate([
     (0, common_1.Patch)(),
@@ -55,6 +72,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], TenantController.prototype, "updateTenant", null);
+__decorate([
+    (0, common_1.Get)('verify-domain'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TenantController.prototype, "verifyDomain", null);
 __decorate([
     (0, common_1.Post)('upload-avatar'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
@@ -81,6 +105,30 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], TenantController.prototype, "uploadAvatar", null);
+__decorate([
+    (0, common_1.Post)('payment/qris'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
+        limits: { fileSize: 2 * 1024 * 1024 },
+        fileFilter: (req, file, cb) => {
+            if (!file.originalname.match(/\.(jpg|jpeg|png)$/i)) {
+                return cb(new common_1.BadRequestException('Only JPG and PNG images are allowed for QRIS!'), false);
+            }
+            cb(null, true);
+        }
+    })),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], TenantController.prototype, "uploadQris", null);
+__decorate([
+    (0, common_1.Post)('payment/provision'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], TenantController.prototype, "provisionPaymentAccount", null);
 exports.TenantController = TenantController = __decorate([
     (0, common_1.Controller)('tenant'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

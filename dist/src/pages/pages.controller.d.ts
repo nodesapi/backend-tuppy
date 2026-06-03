@@ -48,6 +48,10 @@ export declare class PagesController {
             waPhoneNumber: string | null;
             pgProvider: string | null;
             pgApiKey: string | null;
+            payhookTenantId: string | null;
+            payhookApiKey: string | null;
+            payhookWebhookSecret: string | null;
+            payhookQrisUrl: string | null;
             bankName: string | null;
             bankAccount: string | null;
             bankAccountName: string | null;

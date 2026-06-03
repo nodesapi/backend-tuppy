@@ -15,10 +15,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppController = void 0;
 const common_1 = require("@nestjs/common");
 const app_service_1 = require("./app.service");
+const prisma_service_1 = require("./prisma/prisma.service");
 let AppController = class AppController {
     appService;
-    constructor(appService) {
+    prisma;
+    constructor(appService, prisma) {
         this.appService = appService;
+        this.prisma = prisma;
+    }
+    async getPublicConfig() {
+        const configs = await this.prisma.systemConfig.findMany();
+        const configMap = {};
+        configs.forEach(c => configMap[c.key] = c.value);
+        return configMap;
     }
     getHello(res) {
         const html403 = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -55,6 +64,12 @@ background-color:#555555;}
 };
 exports.AppController = AppController;
 __decorate([
+    (0, common_1.Get)('config'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "getPublicConfig", null);
+__decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Res)()),
     __metadata("design:type", Function),
@@ -63,6 +78,7 @@ __decorate([
 ], AppController.prototype, "getHello", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)(),
-    __metadata("design:paramtypes", [app_service_1.AppService])
+    __metadata("design:paramtypes", [app_service_1.AppService,
+        prisma_service_1.PrismaService])
 ], AppController);
 //# sourceMappingURL=app.controller.js.map

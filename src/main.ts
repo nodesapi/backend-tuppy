@@ -13,7 +13,7 @@ import cookieParser from 'cookie-parser';
 import { NotFoundExceptionFilter } from './filters/not-found.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   
   // Register Global Exception Filters
   app.useGlobalFilters(new NotFoundExceptionFilter());

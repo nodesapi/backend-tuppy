@@ -53,6 +53,7 @@ model Tenant {
   // Payhook / Direct Payment Integration (Premium Only)
   payhookTenantId String?
   payhookApiKey   String?
+  payhookWebhookSecret String?
   payhookQrisUrl  String?
 
   bankName       String?

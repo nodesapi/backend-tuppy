@@ -20,7 +20,102 @@ let SubscriptionsService = class SubscriptionsService {
         this.prisma = prisma;
         this.payhookService = payhookService;
     }
-    async createCheckout(userId, plan) {
+    async getPaymentChannels() {
+        const channels = await this.payhookService.getChannels();
+        return { success: true, data: channels };
+    }
+    async getCheckout(userId, invoiceId) {
+        const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+        if (!tenant)
+            throw new common_1.NotFoundException('Tenant not found');
+        const subscription = await this.prisma.subscription.findFirst({
+            where: { tenantId: tenant.id, invoiceUrl: invoiceId }
+        });
+        if (!subscription)
+            throw new common_1.NotFoundException('Invoice not found');
+        let paymentInstruction = subscription.paymentInstruction || {};
+        if (subscription.status !== 'PAID' && subscription.invoiceUrl) {
+            const payhookInvoice = await this.payhookService.getInvoice(subscription.invoiceUrl);
+            if (payhookInvoice) {
+                let needsUpdate = false;
+                if (!paymentInstruction.pay_amount && payhookInvoice.pay_amount) {
+                    paymentInstruction.pay_amount = payhookInvoice.pay_amount;
+                    needsUpdate = true;
+                }
+                if ((payhookInvoice.status === 'paid' || payhookInvoice.status === 'success') && subscription.status !== 'PAID') {
+                    const updatedTenant = await this.prisma.$transaction(async (tx) => {
+                        await tx.subscription.update({
+                            where: { id: subscription.id },
+                            data: { status: 'PAID', paidAt: new Date(), paymentInstruction }
+                        });
+                        const t = await tx.tenant.findUnique({ where: { id: subscription.tenantId } });
+                        if (t) {
+                            const currentExpiry = t.premiumUntil && t.premiumUntil > new Date() ? t.premiumUntil : new Date();
+                            const additionalMonths = subscription.plan === 'YEARLY' ? 12 : 1;
+                            const newExpiry = new Date(currentExpiry);
+                            newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
+                            return tx.tenant.update({
+                                where: { id: t.id },
+                                data: { isPremium: true, premiumUntil: newExpiry },
+                                include: { user: true }
+                            });
+                        }
+                        return null;
+                    });
+                    if (updatedTenant && updatedTenant.user && !updatedTenant.payhookTenantId) {
+                        try {
+                            const payhookData = await this.payhookService.provisionPayhookAccount({
+                                name: updatedTenant.displayName || updatedTenant.username,
+                                email: updatedTenant.user.email,
+                                phone: updatedTenant.waPhoneNumber || undefined,
+                                password_hash: updatedTenant.user.password,
+                                domain: updatedTenant.customDomain || undefined,
+                            });
+                            if (payhookData && payhookData.tenant_id) {
+                                await this.prisma.tenant.update({
+                                    where: { id: updatedTenant.id },
+                                    data: {
+                                        payhookTenantId: String(payhookData.tenant_id),
+                                        payhookApiKey: payhookData.api_key_production
+                                    }
+                                });
+                            }
+                        }
+                        catch (err) {
+                            console.error('Failed to provision Payhook account on getCheckout:', err.message);
+                        }
+                    }
+                    return {
+                        success: true,
+                        subscriptionId: subscription.id,
+                        invoiceId: subscription.invoiceUrl,
+                        pay_amount: paymentInstruction.pay_amount || subscription.amount,
+                        payment_instruction: paymentInstruction,
+                        amount: subscription.amount,
+                        status: 'PAID',
+                        plan: subscription.plan
+                    };
+                }
+                if (needsUpdate) {
+                    await this.prisma.subscription.update({
+                        where: { id: subscription.id },
+                        data: { paymentInstruction }
+                    });
+                }
+            }
+        }
+        return {
+            success: true,
+            subscriptionId: subscription.id,
+            invoiceId: subscription.invoiceUrl,
+            pay_amount: paymentInstruction.pay_amount || subscription.amount,
+            payment_instruction: paymentInstruction,
+            amount: subscription.amount,
+            status: subscription.status,
+            plan: subscription.plan
+        };
+    }
+    async createCheckout(userId, plan, channelId) {
         const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
         if (!tenant)
             throw new common_1.NotFoundException('Tenant not found');
@@ -40,10 +135,17 @@ let SubscriptionsService = class SubscriptionsService {
             customer_name: tenant.displayName || tenant.username,
             external_id: referenceId,
             description: `Upgrade to ${plan} Premium Plan for Tupply`,
+            payment_channel_id: channelId,
         });
         await this.prisma.subscription.update({
             where: { id: subscription.id },
-            data: { invoiceUrl: invoice.invoice_number }
+            data: {
+                invoiceUrl: invoice.invoice_number,
+                paymentInstruction: {
+                    ...(typeof invoice.payment_instruction === 'object' ? invoice.payment_instruction : {}),
+                    pay_amount: invoice.pay_amount
+                }
+            }
         });
         return {
             success: true,
@@ -66,7 +168,7 @@ let SubscriptionsService = class SubscriptionsService {
             throw new common_1.NotFoundException('Subscription not found');
         if (subscription.status === 'PAID')
             return { message: 'Already paid' };
-        return this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.$transaction(async (tx) => {
             await tx.subscription.update({
                 where: { id: subscription.id },
                 data: { status: 'PAID', paidAt: new Date() }
@@ -80,15 +182,40 @@ let SubscriptionsService = class SubscriptionsService {
             const additionalMonths = subscription.plan === 'YEARLY' ? 12 : 1;
             const newExpiry = new Date(currentExpiry);
             newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
-            await tx.tenant.update({
+            const updatedTenant = await tx.tenant.update({
                 where: { id: subscription.tenantId },
                 data: {
                     isPremium: true,
                     premiumUntil: newExpiry
-                }
+                },
+                include: { user: true }
             });
-            return { success: true, message: 'Premium activated' };
+            return { success: true, message: 'Premium activated', tenant: updatedTenant };
         });
+        try {
+            if (result.tenant && result.tenant.user && !result.tenant.payhookTenantId) {
+                const payhookData = await this.payhookService.provisionPayhookAccount({
+                    name: result.tenant.displayName || result.tenant.username,
+                    email: result.tenant.user.email,
+                    phone: result.tenant.waPhoneNumber || undefined,
+                    password_hash: result.tenant.user.password,
+                    domain: result.tenant.customDomain || undefined,
+                });
+                if (payhookData && payhookData.tenant_id) {
+                    await this.prisma.tenant.update({
+                        where: { id: result.tenant.id },
+                        data: {
+                            payhookTenantId: String(payhookData.tenant_id),
+                            payhookApiKey: payhookData.api_key_production
+                        }
+                    });
+                }
+            }
+        }
+        catch (err) {
+            console.error('Failed to provision Payhook account on webhook:', err.message);
+        }
+        return { success: true, message: result.message };
     }
     async getPremiumStatus(userId) {
         const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
@@ -105,6 +232,32 @@ let SubscriptionsService = class SubscriptionsService {
             isPremium: isPremiumActive,
             premiumUntil: tenant.premiumUntil
         };
+    }
+    async getHistory(userId) {
+        const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+        if (!tenant)
+            throw new common_1.NotFoundException('Tenant not found');
+        return this.prisma.subscription.findMany({
+            where: { tenantId: tenant.id },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
+    async getInvoiceDetail(userId, invoiceId) {
+        const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+        if (!tenant)
+            throw new common_1.NotFoundException('Tenant not found');
+        const subscription = await this.prisma.subscription.findFirst({
+            where: {
+                tenantId: tenant.id,
+                id: invoiceId
+            },
+            include: {
+                tenant: true
+            }
+        });
+        if (!subscription)
+            throw new common_1.NotFoundException('Invoice not found');
+        return subscription;
     }
 };
 exports.SubscriptionsService = SubscriptionsService;
