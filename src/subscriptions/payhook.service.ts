@@ -126,9 +126,8 @@ export class PayhookService {
   async uploadQris(tenantId: string | number, file: Express.Multer.File) {
     try {
       const formData = new FormData();
-      // Convert Buffer to Uint8Array to satisfy TypeScript's BlobPart requirement
-      const uint8Array = new Uint8Array(file.buffer.buffer, file.buffer.byteOffset, file.buffer.byteLength);
-      const blob = new Blob([uint8Array], { type: file.mimetype });
+      // Bypass TypeScript's strict ArrayBufferLike check using 'any'
+      const blob = new Blob([file.buffer as any], { type: file.mimetype });
       formData.append('qris_image', blob, file.originalname);
 
       const response = await axios.post(`${this.baseUrl}/api/internal/tupply/merchants/${tenantId}/qris`, formData, {
