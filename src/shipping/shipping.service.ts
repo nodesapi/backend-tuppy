@@ -18,6 +18,7 @@ export class ShippingService {
     let baseUrl = 'https://api.rajaongkir.com/starter';
     if (type === 'basic') baseUrl = 'https://api.rajaongkir.com/basic';
     if (type === 'pro') baseUrl = 'https://pro.rajaongkir.com/api';
+    if (type === 'komerce') baseUrl = 'https://rajaongkir.komerce.id/api/v1';
 
     return {
       apiKey: apiKeyConfig.value,
@@ -29,33 +30,95 @@ export class ShippingService {
   async getProvinces() {
     const config = await this.getRajaOngkirConfig();
     try {
+      if (config.type === 'komerce') {
+        const response = await axios.get(`${config.baseUrl}/destination/province`, {
+          headers: { key: config.apiKey },
+        });
+        // Map Komerce V2 format to RajaOngkir V1 format
+        return response.data.data.map((p: any) => ({
+          province_id: p.id.toString(),
+          province: p.name,
+        }));
+      }
+
       const response = await axios.get(`${config.baseUrl}/province`, {
         headers: { key: config.apiKey },
       });
       return response.data.rajaongkir.results;
     } catch (error) {
-      throw new HttpException(error.response?.data?.rajaongkir?.status?.description || 'Failed to fetch provinces', HttpStatus.BAD_REQUEST);
+      throw new HttpException(error.response?.data?.meta?.message || error.response?.data?.rajaongkir?.status?.description || 'Failed to fetch provinces', HttpStatus.BAD_REQUEST);
     }
   }
 
   async getCities(provinceId?: string) {
     const config = await this.getRajaOngkirConfig();
     try {
+      if (config.type === 'komerce') {
+        const url = provinceId ? `${config.baseUrl}/destination/city/${provinceId}` : `${config.baseUrl}/destination/city`;
+        const response = await axios.get(url, {
+          headers: { key: config.apiKey },
+        });
+        return response.data.data.map((c: any) => ({
+          city_id: c.id.toString(),
+          province_id: provinceId || '',
+          city_name: c.name,
+          type: 'Kota/Kabupaten',
+          postal_code: c.zip_code,
+        }));
+      }
+
       const url = provinceId ? `${config.baseUrl}/city?province=${provinceId}` : `${config.baseUrl}/city`;
       const response = await axios.get(url, {
         headers: { key: config.apiKey },
       });
       return response.data.rajaongkir.results;
     } catch (error) {
-      throw new HttpException(error.response?.data?.rajaongkir?.status?.description || 'Failed to fetch cities', HttpStatus.BAD_REQUEST);
+      throw new HttpException(error.response?.data?.meta?.message || error.response?.data?.rajaongkir?.status?.description || 'Failed to fetch cities', HttpStatus.BAD_REQUEST);
     }
   }
 
   async getCost(origin: string, destination: string, weight: number, courier: string) {
     const config = await this.getRajaOngkirConfig();
     try {
-      // Note: if using 'pro' type, the payload might need originType/destinationType
-      // Defaulting to city id for origin and destination based on starter/basic docs
+      if (config.type === 'komerce') {
+        // Komerce V2 domestic cost endpoint
+        // It requires origin and destination. It might expect subdistrict/district IDs
+        const payload = new URLSearchParams({
+          origin,
+          destination,
+          weight: weight.toString(),
+          courier,
+        }).toString();
+
+        const response = await axios.post(`${config.baseUrl}/calculate/domestic-cost`, payload, {
+          headers: { key: config.apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+
+        // Map Komerce V2 Cost response to RajaOngkir V1 format if necessary
+        // Assuming Komerce returns `{ data: [ { name: "JNE", code: "jne", costs: [ { service: "REG", value: 10000, ... } ] } ] }`
+        // RajaOngkir format: `[ { code: "jne", name: "Jalur Nugraha Ekakurir (JNE)", costs: [ { service: "REG", description: "Layanan Reguler", cost: [ { value: 10000, etd: "1-2", note: "" } ] } ] } ]`
+        // If Komerce directly matches or we need to transform, we can do a basic transform to be safe:
+        const data = response.data.data;
+        if (Array.isArray(data)) {
+           return data.map((courierItem: any) => ({
+             code: courierItem.code,
+             name: courierItem.name,
+             costs: courierItem.costs ? courierItem.costs.map((c: any) => ({
+               service: c.service,
+               description: c.description || c.service,
+               cost: [
+                 {
+                   value: c.cost || c.value || (c.cost ? c.cost[0]?.value : 0),
+                   etd: c.etd || c.estimated_delivery_time || '',
+                   note: c.note || ''
+                 }
+               ]
+             })) : []
+           }));
+        }
+        return data;
+      }
+
       const payload: any = {
         origin,
         destination,
@@ -73,7 +136,7 @@ export class ShippingService {
       });
       return response.data.rajaongkir.results;
     } catch (error) {
-      throw new HttpException(error.response?.data?.rajaongkir?.status?.description || 'Failed to calculate shipping cost', HttpStatus.BAD_REQUEST);
+      throw new HttpException(error.response?.data?.meta?.message || error.response?.data?.rajaongkir?.status?.description || 'Failed to calculate shipping cost', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -84,6 +147,14 @@ export class ShippingService {
     }
     
     try {
+      if (config.type === 'komerce') {
+         const payload = new URLSearchParams({ waybill, courier }).toString();
+         const response = await axios.post(`${config.baseUrl}/waybill`, payload, {
+           headers: { key: config.apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
+         });
+         return response.data.data;
+      }
+
       const response = await axios.post(`${config.baseUrl}/waybill`, {
         waybill,
         courier
@@ -92,7 +163,7 @@ export class ShippingService {
       });
       return response.data.rajaongkir.result;
     } catch (error) {
-      throw new HttpException(error.response?.data?.rajaongkir?.status?.description || 'Failed to track waybill', HttpStatus.BAD_REQUEST);
+      throw new HttpException(error.response?.data?.meta?.message || error.response?.data?.rajaongkir?.status?.description || 'Failed to track waybill', HttpStatus.BAD_REQUEST);
     }
   }
 }
