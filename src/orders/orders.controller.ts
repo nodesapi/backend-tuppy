@@ -34,6 +34,12 @@ export class OrdersController {
     return this.ordersService.getOrderInvoice(orderNumber);
   }
 
+  // PUBLIC: Download file produk digital
+  @Get('download')
+  downloadDigitalFile(@Query('token') token: string) {
+    return this.ordersService.downloadFile(token);
+  }
+
   // PUBLIC: Upload Bukti Pembayaran Manual
   @Post(':orderNumber/payment-proof')
   uploadPaymentProof(

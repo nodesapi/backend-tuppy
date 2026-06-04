@@ -509,6 +509,32 @@ export class OrdersService {
     return { ...order, downloadTokens };
   }
 
+  // PUBLIC: Download file produk digital
+  async downloadFile(token: string) {
+    if (!token) throw new BadRequestException('Token tidak valid');
+    const secret = process.env.JWT_SECRET || 'tupply-secure-download-secret-12345';
+    
+    try {
+      const decoded: any = jwt.verify(token, secret);
+      const fileUrl = decoded.driveFileId;
+      
+      if (!fileUrl) throw new NotFoundException('File tidak ditemukan');
+
+      // Jika URL sudah full HTTP, kembalikan langsung
+      if (fileUrl.startsWith('http')) {
+        return { url: fileUrl };
+      }
+
+      // Jika URL relatif, gabungkan dengan CDN_URL
+      const cdnUrl = process.env.CDN_URL || 'http://localhost:4000';
+      return { url: `${cdnUrl}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}` };
+      
+    } catch (e: any) {
+      this.logger.error(`Download failed: ${e.message}`);
+      throw new BadRequestException('Link download sudah kedaluwarsa atau tidak valid. Silakan muat ulang halaman (Refresh).');
+    }
+  }
+
   // ADMIN: Ambil semua order lintas tenant
   async getAllOrders(status?: string) {
     const where: any = {};
