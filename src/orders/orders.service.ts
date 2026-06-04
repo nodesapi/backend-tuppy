@@ -55,7 +55,7 @@ export class OrdersService {
         totalWeight = 0;
         for (const item of items) {
           if (!item.isDigital && item.productId) {
-            const prod = dbProducts.find(p => p.id === item.productId);
+            const prod = dbProducts.find((p: any) => p.id === item.productId);
             totalWeight += (prod?.weight || 1000) * item.quantity;
           } else if (!item.isDigital) {
             totalWeight += 1000 * item.quantity; // Fallback
@@ -71,7 +71,7 @@ export class OrdersService {
           if (costData && costData.length > 0 && costData[0].costs.length > 0) {
             // Find minimum cost or match with user input
             // For security, we just ensure shippingCost matches one of the valid costs
-            const validCosts = costData[0].costs.map(c => c.cost[0].value);
+            const validCosts = costData[0].costs.map((c: any) => c.cost[0].value);
             if (!validCosts.includes(shippingCost)) {
               this.logger.warn(`Biaya pengiriman mismatch. Client: ${shippingCost}, Valid: ${validCosts.join(',')}`);
               // throw new BadRequestException('Biaya pengiriman tidak valid.'); 

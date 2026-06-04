@@ -22,6 +22,13 @@ export class CreateOrderItemDto {
 
   @IsNumber()
   quantity: number;
+
+  @IsOptional()
+  isDigital?: boolean;
+
+  @IsOptional()
+  @IsString()
+  digitalFileId?: string;
 }
 
 export class CreateOrderDto {
