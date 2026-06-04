@@ -4,173 +4,148 @@ import axios from 'axios';
 
 @Injectable()
 export class ShippingService {
+  // Simple in-memory cache mechanism
+  private cache: Map<string, { data: any; expiry: number }> = new Map();
+  // 24 hours TTL for Cost calculations (Prices don't change often)
+  private COST_CACHE_TTL = 24 * 60 * 60 * 1000;
+  // 1 hour TTL for Tracking (To prevent spamming the API when users hit refresh)
+  private TRACK_CACHE_TTL = 60 * 60 * 1000;
+  // 30 days TTL for regions
+  private REGION_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
+
   constructor(private readonly prisma: PrismaService) {}
 
-  private async getRajaOngkirConfig() {
-    const apiKeyConfig = await this.prisma.systemConfig.findUnique({ where: { key: 'RAJAONGKIR_API_KEY' } });
-    let typeConfig = await this.prisma.systemConfig.findUnique({ where: { key: 'RAJAONGKIR_TYPE' } });
+  private async getBinderByteConfig() {
+    const apiKeyConfig = await this.prisma.systemConfig.findUnique({ where: { key: 'BINDERBYTE_API_KEY' } });
 
     if (!apiKeyConfig || !apiKeyConfig.value) {
-      throw new HttpException('RajaOngkir API Key is not configured by Admin.', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException('BinderByte API Key is not configured by Admin.', HttpStatus.INTERNAL_SERVER_ERROR);
     }
-
-    let type = (typeConfig?.value || 'starter').toLowerCase();
-    
-    // OVERRIDE: Since RajaOngkir V1 (Starter) is dead/blocked and replaced by Komerce V2, 
-    // we force 'starter' to act as 'komerce' so the user doesn't need to manually update the dashboard UI.
-    if (type === 'starter') {
-      type = 'komerce';
-    }
-
-    let baseUrl = 'https://api.rajaongkir.com/starter';
-    if (type === 'basic') baseUrl = 'https://api.rajaongkir.com/basic';
-    if (type === 'pro') baseUrl = 'https://pro.rajaongkir.com/api';
-    if (type === 'komerce') baseUrl = 'https://rajaongkir.komerce.id/api/v1';
 
     return {
       apiKey: apiKeyConfig.value,
-      type,
-      baseUrl,
+      baseUrl: 'https://api.binderbyte.com/v1',
+      wilayahUrl: 'https://api.binderbyte.com/wilayah',
     };
   }
 
-  async getProvinces() {
-    const config = await this.getRajaOngkirConfig();
-    try {
-      if (config.type === 'komerce') {
-        const response = await axios.get(`${config.baseUrl}/destination/province`, {
-          headers: { key: config.apiKey },
-        });
-        // Map Komerce V2 format to RajaOngkir V1 format
-        return response.data.data.map((p: any) => ({
-          province_id: p.id.toString(),
-          province: p.name,
-        }));
-      }
+  private getFromCache(key: string) {
+    const cached = this.cache.get(key);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.data;
+    }
+    if (cached) {
+      this.cache.delete(key);
+    }
+    return null;
+  }
 
-      const response = await axios.get(`${config.baseUrl}/province`, {
-        headers: { key: config.apiKey },
+  private setToCache(key: string, data: any, ttl: number) {
+    this.cache.set(key, {
+      data,
+      expiry: Date.now() + ttl,
+    });
+  }
+
+  async getProvinces() {
+    const cacheKey = 'provinces';
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    const config = await this.getBinderByteConfig();
+    try {
+      const response = await axios.get(`${config.wilayahUrl}/provinsi`, {
+        params: { api_key: config.apiKey }
       });
-      return response.data.rajaongkir.results;
+      // Map to frontend expectation
+      const data = response.data.value.map((p: any) => ({
+        province_id: p.id,
+        province: p.name,
+      }));
+      this.setToCache(cacheKey, data, this.REGION_CACHE_TTL);
+      return data;
     } catch (error) {
-      throw new HttpException(error.response?.data?.meta?.message || error.response?.data?.rajaongkir?.status?.description || 'Failed to fetch provinces', HttpStatus.BAD_REQUEST);
+      throw new HttpException(error.response?.data?.message || 'Failed to fetch provinces from BinderByte', HttpStatus.BAD_REQUEST);
     }
   }
 
   async getCities(provinceId?: string) {
-    const config = await this.getRajaOngkirConfig();
-    try {
-      if (config.type === 'komerce') {
-        const url = provinceId ? `${config.baseUrl}/destination/city/${provinceId}` : `${config.baseUrl}/destination/city`;
-        const response = await axios.get(url, {
-          headers: { key: config.apiKey },
-        });
-        return response.data.data.map((c: any) => ({
-          city_id: c.id.toString(),
-          province_id: provinceId || '',
-          city_name: c.name,
-          type: 'Kota/Kabupaten',
-          postal_code: c.zip_code,
-        }));
-      }
+    if (!provinceId) {
+       return [];
+    }
+    const cacheKey = `cities_${provinceId}`;
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
 
-      const url = provinceId ? `${config.baseUrl}/city?province=${provinceId}` : `${config.baseUrl}/city`;
-      const response = await axios.get(url, {
-        headers: { key: config.apiKey },
+    const config = await this.getBinderByteConfig();
+    try {
+      const response = await axios.get(`${config.wilayahUrl}/kabupaten`, {
+        params: { api_key: config.apiKey, id_provinsi: provinceId }
       });
-      return response.data.rajaongkir.results;
+      // Map to frontend expectation
+      const data = response.data.value.map((c: any) => ({
+        city_id: c.id,
+        province_id: provinceId,
+        city_name: c.name,
+        type: 'Kota/Kabupaten',
+        postal_code: ''
+      }));
+      this.setToCache(cacheKey, data, this.REGION_CACHE_TTL);
+      return data;
     } catch (error) {
-      throw new HttpException(error.response?.data?.meta?.message || error.response?.data?.rajaongkir?.status?.description || 'Failed to fetch cities', HttpStatus.BAD_REQUEST);
+      throw new HttpException(error.response?.data?.message || 'Failed to fetch cities from BinderByte', HttpStatus.BAD_REQUEST);
     }
   }
 
   async getCost(origin: string, destination: string, weight: number, courier: string) {
-    const config = await this.getRajaOngkirConfig();
+    const cacheKey = `cost_${origin}_${destination}_${weight}_${courier}`;
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    const config = await this.getBinderByteConfig();
     try {
-      if (config.type === 'komerce') {
-        // Komerce V2 domestic cost endpoint
-        // It requires origin and destination. It might expect subdistrict/district IDs
-        const payload = new URLSearchParams({
+      const response = await axios.get(`${config.baseUrl}/cost`, {
+        params: {
+          api_key: config.apiKey,
+          courier,
           origin,
           destination,
-          weight: weight.toString(),
-          courier,
-        }).toString();
-
-        const response = await axios.post(`${config.baseUrl}/calculate/domestic-cost`, payload, {
-          headers: { key: config.apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
-        });
-
-        // Map Komerce V2 Cost response to RajaOngkir V1 format if necessary
-        // Assuming Komerce returns `{ data: [ { name: "JNE", code: "jne", costs: [ { service: "REG", value: 10000, ... } ] } ] }`
-        // RajaOngkir format: `[ { code: "jne", name: "Jalur Nugraha Ekakurir (JNE)", costs: [ { service: "REG", description: "Layanan Reguler", cost: [ { value: 10000, etd: "1-2", note: "" } ] } ] } ]`
-        // If Komerce directly matches or we need to transform, we can do a basic transform to be safe:
-        const data = response.data.data;
-        if (Array.isArray(data)) {
-           return data.map((courierItem: any) => ({
-             code: courierItem.code,
-             name: courierItem.name,
-             costs: courierItem.costs ? courierItem.costs.map((c: any) => ({
-               service: c.service,
-               description: c.description || c.service,
-               cost: [
-                 {
-                   value: c.cost || c.value || (c.cost ? c.cost[0]?.value : 0),
-                   etd: c.etd || c.estimated_delivery_time || '',
-                   note: c.note || ''
-                 }
-               ]
-             })) : []
-           }));
+          weight
         }
-        return data;
-      }
-
-      const payload: any = {
-        origin,
-        destination,
-        weight,
-        courier,
-      };
-
-      if (config.type === 'pro') {
-        payload.originType = 'city'; // Assuming tenant address uses city id
-        payload.destinationType = 'subdistrict'; // Assuming buyer address uses subdistrict id
-      }
-
-      const response = await axios.post(`${config.baseUrl}/cost`, payload, {
-        headers: { key: config.apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
       });
-      return response.data.rajaongkir.results;
+
+      // The frontend expects:
+      // [ { code: "jne", name: "JNE", costs: [ { service: "REG", description: "Layanan Reguler", cost: [ { value: 10000, etd: "1-2", note: "" } ] } ] } ]
+      // Binderbyte Cost API response structure maps nicely to this
+      const data = response.data.data;
+      
+      this.setToCache(cacheKey, data, this.COST_CACHE_TTL);
+      return data;
     } catch (error) {
-      throw new HttpException(error.response?.data?.meta?.message || error.response?.data?.rajaongkir?.status?.description || 'Failed to calculate shipping cost', HttpStatus.BAD_REQUEST);
+      throw new HttpException(error.response?.data?.message || 'Failed to calculate shipping cost via BinderByte', HttpStatus.BAD_REQUEST);
     }
   }
 
   async trackWaybill(waybill: string, courier: string) {
-    const config = await this.getRajaOngkirConfig();
-    if (config.type === 'starter') {
-      throw new HttpException('Tracking is not supported in Starter type. Upgrade to Basic/Pro.', HttpStatus.BAD_REQUEST);
-    }
-    
-    try {
-      if (config.type === 'komerce') {
-         const payload = new URLSearchParams({ waybill, courier }).toString();
-         const response = await axios.post(`${config.baseUrl}/waybill`, payload, {
-           headers: { key: config.apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
-         });
-         return response.data.data;
-      }
+    const cacheKey = `track_${waybill}_${courier}`;
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
 
-      const response = await axios.post(`${config.baseUrl}/waybill`, {
-        waybill,
-        courier
-      }, {
-        headers: { key: config.apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
+    const config = await this.getBinderByteConfig();
+    try {
+      const response = await axios.get(`${config.baseUrl}/track`, {
+        params: {
+          api_key: config.apiKey,
+          courier,
+          awb: waybill
+        }
       });
-      return response.data.rajaongkir.result;
+      const data = response.data.data;
+      
+      this.setToCache(cacheKey, data, this.TRACK_CACHE_TTL);
+      return data;
     } catch (error) {
-      throw new HttpException(error.response?.data?.meta?.message || error.response?.data?.rajaongkir?.status?.description || 'Failed to track waybill', HttpStatus.BAD_REQUEST);
+      throw new HttpException(error.response?.data?.message || 'Failed to track waybill via BinderByte', HttpStatus.BAD_REQUEST);
     }
   }
 }
