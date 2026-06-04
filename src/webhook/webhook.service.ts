@@ -26,9 +26,13 @@ export class WebhookService {
       return { received: true, message: 'Ignored non-paid status' };
     }
 
-    // 1. Find the Order (We assume Payhook invoice_number = Tupply Order orderNumber)
-    const order = await this.prisma.order.findUnique({
-      where: { orderNumber: invoiceNumber },
+    // 1. Find the Order (Payhook invoice_number is stored inside paymentLink JSON)
+    const order = await this.prisma.order.findFirst({
+      where: {
+        paymentLink: {
+          contains: invoiceNumber
+        }
+      },
       include: { tenant: true }
     });
 
