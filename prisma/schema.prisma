@@ -140,6 +140,7 @@ model Product {
   description String? @db.Text
   price       Float
   imageUrl    String?
+  images      String[] @default([])
 
   isPhysical Boolean @default(false)
   weight     Int? // dalam gram

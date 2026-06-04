@@ -33,13 +33,14 @@ export class ProductsController {
   @Post()
   async create(@Request() req: any, @Body() body: any) {
     const tenantId = await this.getTenantId(req.user.id);
-    const { title, description, price, fileUrl, fileSize, imageUrl, isPhysical, weight, stock, sku } = body;
+    const { title, description, price, fileUrl, fileSize, imageUrl, images, isPhysical, weight, stock, sku } = body;
     return this.productsService.create(tenantId, {
       title,
       description,
       price: Number(price),
       fileUrl,
-      imageUrl,
+      imageUrl: images && images.length > 0 ? images[0] : imageUrl,
+      images: images || [],
       fileSize: fileSize ? Number(fileSize) : undefined,
       isPhysical: isPhysical === true || isPhysical === 'true',
       weight: weight ? Number(weight) : undefined,
@@ -51,11 +52,16 @@ export class ProductsController {
   @Put(':id')
   async update(@Request() req: any, @Param('id') id: string, @Body() body: any) {
     const tenantId = await this.getTenantId(req.user.id);
-    const { title, description, price } = body;
+    const { title, description, price, images, weight, stock, sku } = body;
     return this.productsService.update(tenantId, id, {
       title,
       description,
-      price: price ? Number(price) : undefined
+      price: price ? Number(price) : undefined,
+      imageUrl: images && images.length > 0 ? images[0] : undefined,
+      images: images,
+      weight: weight ? Number(weight) : undefined,
+      stock: stock ? Number(stock) : undefined,
+      sku
     });
   }
 

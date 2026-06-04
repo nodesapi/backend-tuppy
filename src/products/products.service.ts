@@ -24,7 +24,7 @@ export class ProductsService {
     return product;
   }
 
-  async create(tenantId: string, data: { title: string, description?: string, price: number, fileUrl?: string, imageUrl?: string, fileSize?: number, isPhysical?: boolean, weight?: number, stock?: number, sku?: string }) {
+  async create(tenantId: string, data: { title: string, description?: string, price: number, fileUrl?: string, imageUrl?: string, images?: string[], fileSize?: number, isPhysical?: boolean, weight?: number, stock?: number, sku?: string }) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
       select: { isPremium: true, storageUsed: true }
@@ -52,6 +52,7 @@ export class ProductsService {
           price: data.price,
           fileUrl: data.fileUrl,
           imageUrl: data.imageUrl,
+          images: data.images || [],
           isPhysical: data.isPhysical || false,
           weight: data.weight || null,
           stock: data.stock || null,
@@ -72,14 +73,32 @@ export class ProductsService {
     });
   }
 
-  async update(tenantId: string, id: string, data: { title?: string, description?: string, price?: number, weight?: number, stock?: number, sku?: string }) {
+  async update(tenantId: string, id: string, data: { title?: string, description?: string, price?: number, imageUrl?: string, images?: string[], weight?: number, stock?: number, sku?: string }) {
     const product = await this.findOne(tenantId, id);
+
+    // Check if any old images are removed, and delete them from CDN
+    if (data.images && product.images && product.images.length > 0) {
+      const removedImages = product.images.filter((img: string) => !data.images!.includes(img));
+      if (removedImages.length > 0) {
+        const cdnUrl = process.env.CDN_URL || 'http://localhost:4000';
+        for (const url of removedImages) {
+          fetch(`${cdnUrl}/delete`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+          }).catch(e => console.error('Failed to delete removed image from CDN:', e));
+        }
+      }
+    }
+
     return this.prisma.product.update({
       where: { id: product.id },
       data: {
         title: data.title,
         description: data.description,
         price: data.price,
+        imageUrl: data.imageUrl,
+        images: data.images,
         weight: data.weight,
         stock: data.stock,
         sku: data.sku
@@ -92,17 +111,34 @@ export class ProductsService {
     
     return this.prisma.$transaction(async (tx) => {
       // Send delete request to CDN first (best effort)
-      if (product.imageUrl || product.fileUrl) {
+      if (product.imageUrl || product.fileUrl || (product.images && product.images.length > 0)) {
         try {
           const cdnUrl = process.env.CDN_URL || 'http://localhost:4000';
-          await fetch(`${cdnUrl}/delete`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              url: product.imageUrl,
-              r2Key: product.fileUrl
-            })
-          });
+          
+          // Delete digital file or main image
+          if (product.imageUrl || product.fileUrl) {
+            await fetch(`${cdnUrl}/delete`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                url: product.imageUrl,
+                r2Key: product.fileUrl
+              })
+            });
+          }
+
+          // Delete additional images
+          if (product.images && product.images.length > 0) {
+            for (const img of product.images) {
+              if (img !== product.imageUrl) {
+                await fetch(`${cdnUrl}/delete`, {
+                  method: 'DELETE',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ url: img })
+                });
+              }
+            }
+          }
         } catch (e) {
           console.error('Failed to delete files from CDN:', e);
         }
