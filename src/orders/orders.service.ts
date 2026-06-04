@@ -244,7 +244,7 @@ export class OrdersService {
     
     const order = await this.prisma.order.findUnique({
       where: { orderNumber },
-      include: { items: true, tenant: { select: { displayName: true } } },
+      include: { items: true, tenant: { select: { displayName: true } }, review: true },
     });
 
     if (!order) throw new NotFoundException('Pesanan tidak ditemukan');

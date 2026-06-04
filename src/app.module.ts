@@ -27,6 +27,7 @@ import { EmailModule } from './email/email.module';
 import { DocsModule } from './docs/docs.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { ProductsModule } from './products/products.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ProductsModule } from './products/products.module';
     DocsModule,
     WebhookModule,
     ProductsModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

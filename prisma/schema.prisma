@@ -72,6 +72,7 @@ model Tenant {
   orders             Order[]
   walletTransactions WalletTransaction[]
   whatsappLogs       WhatsappLog[]
+  reviews            Review[]
 
   // Status Penangguhan (Suspend)
   isSuspended        Boolean   @default(false)
@@ -230,6 +231,7 @@ model Order {
 
   tenant Tenant      @relation(fields: [tenantId], references: [id])
   items  OrderItem[]
+  review Review?
 }
 
 // Item per Order
@@ -295,4 +297,17 @@ model WhatsappLog {
   createdAt DateTime @default(now())
 
   tenant Tenant? @relation(fields: [tenantId], references: [id])
+}
+
+// Ulasan Pembeli (Verified Purchase)
+model Review {
+  id        String   @id @default(uuid())
+  tenantId  String
+  orderId   String   @unique
+  rating    Int      // 1 to 5
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
