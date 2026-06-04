@@ -59,6 +59,7 @@ model Tenant {
   bankName       String?
   bankAccount    String?
   bankAccountName String?
+  address        String?   @db.Text
   storageUsed    Float     @default(0) // Kapasitas penyimpanan terpakai dalam Bytes
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -71,6 +72,7 @@ model Tenant {
   leads              Lead[]
   orders             Order[]
   walletTransactions WalletTransaction[]
+  withdrawalRequests WithdrawalRequest[]
   whatsappLogs       WhatsappLog[]
   reviews            Review[]
 
@@ -221,8 +223,9 @@ model Order {
   channel         String   @default("DIRECT") // DIRECT | SHOPEE | TOKOPEDIA | WHATSAPP
   status          String   @default("PENDING") // PENDING | CONFIRMED | PROCESSING | DELIVERED | CANCELLED
   paymentMethod   String?
-  paymentGateway  String?  // MIDTRANS | XENDIT | null
+  paymentGateway  String?  // MANUAL | PAYHOOK_GLOBAL | PAYHOOK_DEDICATED
   paymentLink     String?
+  paymentProof    String?  // URL bukti pembayaran manual
   awbNumber       String?  // Nomor Resi
   courier         String?  // Nama Ekspedisi
   waSent          Boolean  @default(false)
@@ -260,6 +263,24 @@ model WalletTransaction {
   referenceId String?
   status      String   @default("SUCCESS") // SUCCESS | PENDING
   createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// Permintaan Tarik Dana (Withdrawal)
+model WithdrawalRequest {
+  id              String   @id @default(uuid())
+  tenantId        String
+  amount          Float    // Nominal kotor yang ditarik
+  fee             Float    // Biaya platform + beda bank
+  netAmount       Float    // Nominal bersih yang ditransfer admin
+  bankName        String
+  bankAccount     String
+  bankAccountName String
+  status          String   @default("PENDING") // PENDING | COMPLETED | REJECTED
+  proofUrl        String?  // Bukti transfer dari admin
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }

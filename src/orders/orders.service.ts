@@ -1,16 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { EmailService } from '../email/email.service';
+import { PayhookService } from '../subscriptions/payhook.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './dto/create-order.dto';
 import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsappService: WhatsappService,
-    private readonly emailService: EmailService
+    private readonly emailService: EmailService,
+    private readonly payhookService: PayhookService
   ) {}
 
   async checkout(dto: CreateOrderDto) {
@@ -26,11 +30,46 @@ export class OrdersService {
 
     // Kalkulasi total
     const grandTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    // Fee hanya berlaku jika transaksi via payment gateway Tupply (saat ini 0)
     const platformFee = 0;
     const netAmount = grandTotal - platformFee;
 
     const orderNumber = `TUPP-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 100)}`;
+    
+    // Tentukan penggunaan Payhook
+    let paymentGateway = 'MANUAL';
+    let paymentLink: string | null = null;
+    
+    try {
+      // Jika tenant punya Dedicated Payhook & QRIS (Premium)
+      if (tenant.isPremium && tenant.payhookApiKey && tenant.payhookQrisUrl) {
+        paymentGateway = 'PAYHOOK_DEDICATED';
+        const invoice = await this.payhookService.createInvoice({
+          amount: grandTotal,
+          customer_name: customerName,
+          customer_email: customerEmail || undefined,
+          external_id: orderNumber,
+          description: `Pembelian dari toko ${tenant.displayName}`,
+        }, tenant.payhookApiKey);
+        
+        paymentLink = invoice.checkout_url;
+      } else {
+        // Fallback ke Global Payhook (Escrow)
+        paymentGateway = 'PAYHOOK_GLOBAL';
+        const invoice = await this.payhookService.createInvoice({
+          amount: grandTotal,
+          customer_name: customerName,
+          customer_email: customerEmail || undefined,
+          external_id: orderNumber,
+          description: `Pembelian dari toko ${tenant.displayName} (Escrow)`,
+        }); // Menggunakan global API Key (tanpa parameter ke-2)
+        
+        paymentLink = invoice.checkout_url;
+      }
+    } catch (e: any) {
+      this.logger.error(`Gagal membuat invoice Payhook: ${e.message}`);
+      // Jika gagal, biarkan MANUAL agar pembeli bisa upload bukti transfer
+      paymentGateway = 'MANUAL';
+    }
 
     const result = await this.prisma.$transaction(async (tx) => {
       // Buat Order utama
@@ -48,6 +87,8 @@ export class OrdersService {
           netAmount,
           channel: channel || 'DIRECT',
           status: 'PENDING',
+          paymentGateway,
+          paymentLink
         },
       });
 
@@ -207,6 +248,34 @@ export class OrdersService {
     }
 
     return updated;
+  }
+
+  async uploadPaymentProof(orderNumber: string, proofUrl: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber },
+      include: { tenant: true }
+    });
+
+    if (!order) throw new NotFoundException('Order tidak ditemukan.');
+
+    if (order.status !== 'PENDING') {
+      throw new BadRequestException('Order tidak dalam status PENDING.');
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: order.id },
+      data: { paymentProof: proofUrl } // Wait, I need to add paymentProof to schema.prisma first!
+    });
+    
+    // Notify tenant via Whatsapp if configured
+    if (order.tenant.notifMethod === 'WHATSAPP' || order.tenant.notifMethod === 'BOTH') {
+       if (order.tenant.waPhoneNumber) {
+         const msg = `*[TUPPLY NOTIF]*\nPembeli telah mengunggah bukti pembayaran manual untuk pesanan *${orderNumber}*.\n\nSilakan cek Dashboard > Pesanan Anda.`;
+         this.whatsappService.sendMessage(order.tenantId, order.tenant.waPhoneNumber, msg, order.id);
+       }
+    }
+
+    return { success: true, message: 'Bukti pembayaran berhasil diunggah' };
   }
 
   private generateWaText(order: any, tenantPhone?: string | null) {

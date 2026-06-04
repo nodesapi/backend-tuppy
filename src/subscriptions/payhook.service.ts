@@ -15,16 +15,17 @@ export class PayhookService {
     external_id: string;
     description: string;
     payment_channel_id?: number;
-  }) {
-    if (!this.apiKey) {
-      this.logger.error('PAYHOOK_API_KEY is not defined in environment variables');
+  }, customApiKey?: string) {
+    const keyToUse = customApiKey || this.apiKey;
+    if (!keyToUse) {
+      this.logger.error('PAYHOOK_API_KEY is not defined in environment variables or passed as parameter');
       throw new HttpException('Payment Gateway configuration is missing', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     try {
       const response = await axios.post(`${this.baseUrl}/api/v1/invoices`, payload, {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'Authorization': `Bearer ${keyToUse}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },

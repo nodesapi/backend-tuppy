@@ -12,6 +12,11 @@ export class WalletController {
     return this.walletService.getMyWallet(req.user.id);
   }
 
+  @Get('withdrawal-config')
+  getWithdrawalConfig() {
+    return this.walletService.getWithdrawalConfig();
+  }
+
   @Post('withdraw')
   withdraw(@Request() req: any, @Body('amount') amount: number) {
     return this.walletService.withdraw(req.user.id, amount);

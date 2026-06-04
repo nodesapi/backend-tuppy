@@ -17,7 +17,7 @@ export class TenantService {
     return tenant || null;
   }
 
-  async updateTenant(userId: string, data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; notifMethod?: string; customDomain?: string; seoConfig?: any; pgProvider?: string }) {
+  async updateTenant(userId: string, data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; address?: string; notifMethod?: string; customDomain?: string; seoConfig?: any; pgProvider?: string }) {
     const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
     
     // Check username uniqueness if provided
@@ -55,6 +55,7 @@ export class TenantService {
           bankAccount: data.bankAccount,
           bankAccountName: data.bankAccountName,
           waPhoneNumber: data.waPhoneNumber,
+          address: data.address,
           notifMethod: data.notifMethod || 'EMAIL',
           pgProvider: data.pgProvider,
         },

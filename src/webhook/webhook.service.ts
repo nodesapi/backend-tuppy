@@ -39,14 +39,19 @@ export class WebhookService {
 
     const tenant = order.tenant;
 
-    if (!tenant.payhookWebhookSecret) {
-      this.logger.error(`Tenant ${tenant.username} has no webhook secret`);
-      throw new UnauthorizedException('Tenant is missing webhook secret configuration');
+    let secretToUse = tenant.payhookWebhookSecret;
+    if (order.paymentGateway === 'PAYHOOK_GLOBAL') {
+      secretToUse = process.env.PAYHOOK_WEBHOOK_SECRET || process.env.TUPPLY_INTERNAL_SECRET || 'tupply-dev-secret-key-12345';
+    }
+
+    if (!secretToUse) {
+      this.logger.error(`Webhook secret is missing for order ${invoiceNumber}`);
+      throw new UnauthorizedException('Webhook secret configuration missing');
     }
 
     // 2. Verify HMAC Signature
     const expectedSignature = crypto
-      .createHmac('sha256', tenant.payhookWebhookSecret)
+      .createHmac('sha256', secretToUse)
       .update(rawPayload)
       .digest('hex');
 
@@ -57,11 +62,32 @@ export class WebhookService {
 
     // 3. Update Order Status
     if (order.status === 'PENDING') {
-      await this.prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: 'CONFIRMED',
-          paymentMethod: body.invoice.payment_channel || 'PAYHOOK', // Optional if payhook sends channel
+      await this.prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'CONFIRMED',
+            paymentMethod: body.invoice?.payment_channel || 'PAYHOOK',
+          }
+        });
+
+        // Jika menggunakan Global Payhook, tambahkan saldo ke Wallet Penjual (Net Amount utuh, kode unik masuk ke Global)
+        if (order.paymentGateway === 'PAYHOOK_GLOBAL') {
+          await tx.tenant.update({
+            where: { id: tenant.id },
+            data: { walletBalance: { increment: order.netAmount } }
+          });
+
+          await tx.walletTransaction.create({
+            data: {
+              tenantId: tenant.id,
+              type: 'CREDIT',
+              amount: order.netAmount,
+              description: `Penjualan dari Pesanan ${order.orderNumber} (Escrow)`,
+              referenceId: order.id,
+              status: 'SUCCESS'
+            }
+          });
         }
       });
 

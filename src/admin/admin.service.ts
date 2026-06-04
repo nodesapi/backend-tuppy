@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -106,5 +106,44 @@ export class AdminService {
     });
     await this.prisma.$transaction(updates);
     return { success: true, message: 'Configuration updated successfully' };
+  }
+
+  async getWithdrawalRequests(userId: string) {
+    await this.ensureAdmin(userId);
+    return this.prisma.withdrawalRequest.findMany({
+      include: {
+        tenant: { select: { displayName: true, username: true, waPhoneNumber: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async processWithdrawalRequest(userId: string, requestId: string, proofUrl: string) {
+    await this.ensureAdmin(userId);
+    
+    const request = await this.prisma.withdrawalRequest.findUnique({
+      where: { id: requestId }
+    });
+    if (!request) throw new NotFoundException('Withdrawal request not found');
+    if (request.status !== 'PENDING') throw new BadRequestException('Request is already processed');
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.withdrawalRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'COMPLETED',
+          proofUrl
+        }
+      });
+
+      await tx.walletTransaction.updateMany({
+        where: { referenceId: requestId },
+        data: { status: 'SUCCESS' }
+      });
+
+      return updated;
+    });
+
+    return result;
   }
 }
