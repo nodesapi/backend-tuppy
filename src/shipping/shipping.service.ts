@@ -8,13 +8,20 @@ export class ShippingService {
 
   private async getRajaOngkirConfig() {
     const apiKeyConfig = await this.prisma.systemConfig.findUnique({ where: { key: 'RAJAONGKIR_API_KEY' } });
-    const typeConfig = await this.prisma.systemConfig.findUnique({ where: { key: 'RAJAONGKIR_TYPE' } });
+    let typeConfig = await this.prisma.systemConfig.findUnique({ where: { key: 'RAJAONGKIR_TYPE' } });
 
     if (!apiKeyConfig || !apiKeyConfig.value) {
       throw new HttpException('RajaOngkir API Key is not configured by Admin.', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    const type = (typeConfig?.value || 'starter').toLowerCase();
+    let type = (typeConfig?.value || 'starter').toLowerCase();
+    
+    // OVERRIDE: Since RajaOngkir V1 (Starter) is dead/blocked and replaced by Komerce V2, 
+    // we force 'starter' to act as 'komerce' so the user doesn't need to manually update the dashboard UI.
+    if (type === 'starter') {
+      type = 'komerce';
+    }
+
     let baseUrl = 'https://api.rajaongkir.com/starter';
     if (type === 'basic') baseUrl = 'https://api.rajaongkir.com/basic';
     if (type === 'pro') baseUrl = 'https://pro.rajaongkir.com/api';
