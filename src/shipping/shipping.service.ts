@@ -57,15 +57,17 @@ export class ShippingService {
       const response = await axios.get(`${config.wilayahUrl}/provinsi`, {
         params: { api_key: config.apiKey }
       });
-      // Map to frontend expectation
-      const data = response.data.value.map((p: any) => ({
+      // Map to frontend expectation (Handle both 'value' or 'data' array formats from BinderByte)
+      const list = response.data.value || response.data.data || [];
+      const data = list.map((p: any) => ({
         province_id: p.id,
         province: p.name,
       }));
       this.setToCache(cacheKey, data, this.REGION_CACHE_TTL);
       return data;
     } catch (error) {
-      throw new HttpException(error.response?.data?.message || 'Failed to fetch provinces from BinderByte', HttpStatus.BAD_REQUEST);
+      const errMsg = error.response?.data?.message || error.response?.data?.messages || 'Failed to fetch provinces from BinderByte';
+      throw new HttpException(errMsg, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -83,7 +85,8 @@ export class ShippingService {
         params: { api_key: config.apiKey, id_provinsi: provinceId }
       });
       // Map to frontend expectation
-      const data = response.data.value.map((c: any) => ({
+      const list = response.data.value || response.data.data || [];
+      const data = list.map((c: any) => ({
         city_id: c.id,
         province_id: provinceId,
         city_name: c.name,
@@ -93,7 +96,8 @@ export class ShippingService {
       this.setToCache(cacheKey, data, this.REGION_CACHE_TTL);
       return data;
     } catch (error) {
-      throw new HttpException(error.response?.data?.message || 'Failed to fetch cities from BinderByte', HttpStatus.BAD_REQUEST);
+      const errMsg = error.response?.data?.message || error.response?.data?.messages || 'Failed to fetch cities from BinderByte';
+      throw new HttpException(errMsg, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -122,7 +126,8 @@ export class ShippingService {
       this.setToCache(cacheKey, data, this.COST_CACHE_TTL);
       return data;
     } catch (error) {
-      throw new HttpException(error.response?.data?.message || 'Failed to calculate shipping cost via BinderByte', HttpStatus.BAD_REQUEST);
+      const errMsg = error.response?.data?.message || error.response?.data?.messages || 'Failed to calculate shipping cost via BinderByte';
+      throw new HttpException(errMsg, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -145,7 +150,8 @@ export class ShippingService {
       this.setToCache(cacheKey, data, this.TRACK_CACHE_TTL);
       return data;
     } catch (error) {
-      throw new HttpException(error.response?.data?.message || 'Failed to track waybill via BinderByte', HttpStatus.BAD_REQUEST);
+      const errMsg = error.response?.data?.message || error.response?.data?.messages || 'Failed to track waybill via BinderByte';
+      throw new HttpException(errMsg, HttpStatus.BAD_REQUEST);
     }
   }
 }
