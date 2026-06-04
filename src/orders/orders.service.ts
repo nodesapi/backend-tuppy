@@ -315,6 +315,18 @@ export class OrdersService {
       include: { items: true },
     });
 
+    // Kembalikan stok jika pesanan dibatalkan atau expired
+    if ((dto.status === 'CANCELLED' || dto.status === 'EXPIRED') && (order.status !== 'CANCELLED' && order.status !== 'EXPIRED')) {
+      for (const item of updated.items) {
+        if (item.productId) {
+          await this.prisma.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } }
+          }).catch(() => null); // Abaikan jika produk sudah dihapus
+        }
+      }
+    }
+
     // Jika baru selesai (DELIVERED), kredit wallet
     if (dto.status === 'DELIVERED' && order.status !== 'DELIVERED') {
       await this.prisma.$transaction([
