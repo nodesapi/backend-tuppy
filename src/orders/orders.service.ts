@@ -65,7 +65,7 @@ export class OrdersService {
         totalWeight = 1000 * items.reduce((sum, i) => !i.isDigital ? sum + i.quantity : sum, 0);
       }
 
-      if (totalWeight > 0) {
+      if (totalWeight > 0 && !courier.toLowerCase().includes('kirim langsung')) {
         try {
           const costData = await this.shippingService.getCost(tenant.originCityId, destinationCityId, totalWeight, courier);
           if (costData && costData.length > 0 && costData[0].costs.length > 0) {
