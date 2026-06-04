@@ -118,6 +118,47 @@ export class PagesService {
 
       // 2. Jika ada data blocks, replace semuanya
       if (data.blocks && Array.isArray(data.blocks)) {
+        // Find old blocks to check for deleted images
+        const oldBlocks = await tx.block.findMany({
+          where: { pageId: page.id }
+        });
+
+        // Collect URLs that are being deleted
+        const oldImageUrls: string[] = [];
+        for (const b of oldBlocks) {
+          const content = b.content as any;
+          if (content && content.url && typeof content.url === 'string') {
+            oldImageUrls.push(content.url);
+          } else if (content && content.images && Array.isArray(content.images) && content.images.length > 0) {
+            oldImageUrls.push(content.images[0]);
+          }
+        }
+
+        // Collect new URLs
+        const newImageUrls: string[] = [];
+        for (const b of data.blocks) {
+          if (b.content && b.content.url && typeof b.content.url === 'string') {
+            newImageUrls.push(b.content.url);
+          } else if (b.content && b.content.images && Array.isArray(b.content.images) && b.content.images.length > 0) {
+            newImageUrls.push(b.content.images[0]);
+          }
+        }
+
+        // Find URLs to delete
+        const urlsToDelete = oldImageUrls.filter(url => !newImageUrls.includes(url) && url.startsWith('/images/'));
+
+        if (urlsToDelete.length > 0) {
+          // Fire and forget delete requests to CDN
+          const cdnUrl = process.env.CDN_URL || 'http://localhost:4000';
+          for (const url of urlsToDelete) {
+            fetch(`${cdnUrl}/delete`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url })
+            }).catch(e => console.error('Failed to delete old block image from CDN:', e));
+          }
+        }
+
         // Hapus blok lama
         await tx.block.deleteMany({
           where: { pageId: page.id }

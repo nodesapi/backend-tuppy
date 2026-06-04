@@ -91,6 +91,23 @@ export class ProductsService {
     const product = await this.findOne(tenantId, id);
     
     return this.prisma.$transaction(async (tx) => {
+      // Send delete request to CDN first (best effort)
+      if (product.imageUrl || product.fileUrl) {
+        try {
+          const cdnUrl = process.env.CDN_URL || 'http://localhost:4000';
+          await fetch(`${cdnUrl}/delete`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: product.imageUrl,
+              r2Key: product.fileUrl
+            })
+          });
+        } catch (e) {
+          console.error('Failed to delete files from CDN:', e);
+        }
+      }
+
       await tx.product.delete({
         where: { id: product.id }
       });
