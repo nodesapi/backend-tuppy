@@ -250,6 +250,11 @@ model Order {
   awbNumber       String? // Nomor Resi
   courier         String? // Nama Ekspedisi
   waSent          Boolean  @default(false)
+
+  // Anti-fraud / Evidence
+  sellerPackingVideoUrl  String?
+  buyerUnboxingVideoUrl  String?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

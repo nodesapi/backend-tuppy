@@ -84,7 +84,7 @@ export class CreateOrderDto {
 }
 
 export class UpdateOrderStatusDto {
-  @IsIn(['PENDING', 'CONFIRMED', 'PROCESSING', 'DELIVERED', 'CANCELLED'])
+  @IsIn(['PENDING', 'PAID', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'])
   status: string;
 
   @IsOptional()
@@ -98,4 +98,12 @@ export class UpdateOrderStatusDto {
   @IsOptional()
   @IsString()
   courier?: string;
+
+  @IsOptional()
+  @IsString()
+  sellerPackingVideoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  buyerUnboxingVideoUrl?: string;
 }

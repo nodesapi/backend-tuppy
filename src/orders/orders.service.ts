@@ -291,6 +291,8 @@ export class OrdersService {
         ...(dto.internalNote !== undefined && { internalNote: dto.internalNote }),
         ...(dto.courier !== undefined && { courier: dto.courier }),
         ...(dto.awbNumber !== undefined && { awbNumber: dto.awbNumber }),
+        ...(dto.sellerPackingVideoUrl !== undefined && { sellerPackingVideoUrl: dto.sellerPackingVideoUrl }),
+        ...(dto.buyerUnboxingVideoUrl !== undefined && { buyerUnboxingVideoUrl: dto.buyerUnboxingVideoUrl }),
       },
       include: { items: true },
     });
@@ -507,6 +509,65 @@ export class OrdersService {
     }
 
     return { ...order, downloadTokens };
+  }
+
+  // PUBLIC: Konfirmasi Terima Barang / Komplain
+  async confirmOrderGuest(orderNumber: string, phone: string, isComplain: boolean, videoUrl?: string) {
+    const cleanedPhone = phone.replace(/\D/g, '');
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber },
+      include: { tenant: true }
+    });
+
+    if (!order) throw new NotFoundException('Pesanan tidak ditemukan');
+    const orderPhoneCleaned = order.customerPhone.replace(/\D/g, '');
+    if (orderPhoneCleaned !== cleanedPhone) {
+      throw new BadRequestException('Nomor WhatsApp tidak cocok dengan pesanan ini');
+    }
+
+    if (order.status !== 'SHIPPED' && order.status !== 'DELIVERED') {
+      throw new BadRequestException('Pesanan belum dikirim, tidak dapat dikonfirmasi');
+    }
+
+    if (isComplain) {
+      if (!videoUrl) throw new BadRequestException('Link video unboxing wajib diisi untuk komplain');
+      const updated = await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          buyerUnboxingVideoUrl: videoUrl,
+          internalNote: `[KOMPLAIN PEMBELI]: ${order.internalNote || ''}`
+        }
+      });
+      if (order.tenant.waPhoneNumber) {
+        this.whatsappService.sendMessage(order.tenantId, order.tenant.waPhoneNumber, `*[TUPPLY NOTIF]*\nPembeli mengajukan komplain untuk pesanan *${orderNumber}*. Silakan cek dashboard Anda.`, order.id);
+      }
+      return { success: true, message: 'Komplain berhasil diajukan.' };
+    } else {
+      if (order.status !== 'DELIVERED') {
+        const updated = await this.prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'DELIVERED' }
+        });
+        
+        await this.prisma.$transaction([
+          this.prisma.tenant.update({
+            where: { id: order.tenantId },
+            data: { walletBalance: { increment: order.netAmount } },
+          }),
+          this.prisma.walletTransaction.create({
+            data: {
+              tenantId: order.tenantId,
+              type: 'CREDIT',
+              amount: order.netAmount,
+              description: `Penjualan selesai (${order.orderNumber})`,
+              referenceId: order.id,
+              status: 'SUCCESS',
+            },
+          }),
+        ]);
+      }
+      return { success: true, message: 'Pesanan berhasil dikonfirmasi selesai.' };
+    }
   }
 
   // PUBLIC: Download file produk digital

@@ -22,6 +22,18 @@ export class OrdersController {
     return this.ordersService.trackOrder(orderNumber, phone);
   }
 
+  // PUBLIC: Konfirmasi Pesanan Diterima / Komplain
+  @Post('track/:orderNumber/confirm')
+  confirmOrderGuest(
+    @Param('orderNumber') orderNumber: string,
+    @Body('phone') phone: string,
+    @Body('isComplain') isComplain: boolean,
+    @Body('videoUrl') videoUrl?: string
+  ) {
+    if (!phone) throw new BadRequestException('Nomor WhatsApp wajib diisi');
+    return this.ordersService.confirmOrderGuest(orderNumber, phone, isComplain, videoUrl);
+  }
+
   // PUBLIC: Get Payment Channels for a Store
   @Get('channels/:tenantUsername')
   getChannels(@Param('tenantUsername') tenantUsername: string) {
