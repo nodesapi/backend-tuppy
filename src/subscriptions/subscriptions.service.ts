@@ -174,9 +174,10 @@ export class SubscriptionsService {
 
   // Webhook handler untuk menerima notifikasi pembayaran sukses dari Payhook
   async handleWebhook(payload: any) {
-    // Payhook biasanya mengirim payload seperti { status: 'paid', invoice_number: 'INV...', external_id: '...' }
-    const status = payload.status || payload.transaction_status;
-    const invoiceNumber = payload.invoice_number || payload.payment_reference;
+    // Payhook biasanya mengirim payload seperti { event: '...', invoice: { status: 'paid', invoice_number: 'INV...' } }
+    // atau payload flat { status: 'paid', invoice_number: 'INV...' }
+    const status = payload?.invoice?.status || payload.status || payload.transaction_status;
+    const invoiceNumber = payload?.invoice?.invoice_number || payload.invoice_number || payload.payment_reference;
 
     // Kita hanya memproses yang lunas
     if (status !== 'paid' && status !== 'success') return { message: 'Ignored non-paid status' };
