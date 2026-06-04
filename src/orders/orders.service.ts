@@ -109,9 +109,10 @@ export class OrdersService {
             customer_email: customerEmail || undefined,
             external_id: orderNumber,
             description: `Pembelian dari toko ${tenant.displayName}`,
+            payment_channel_id: dto.paymentChannelId,
           }, tenant.payhookApiKey);
           
-          paymentLink = invoice.checkout_url || invoice.invoice_url || invoice.payment_url || invoice.url;
+          paymentLink = invoice.invoice_number;
         } else {
           // Fallback ke Global Payhook (Escrow)
           paymentGateway = 'PAYHOOK_GLOBAL';
@@ -121,9 +122,10 @@ export class OrdersService {
             customer_email: customerEmail || undefined,
             external_id: orderNumber,
             description: `Pembelian dari toko ${tenant.displayName} (Escrow)`,
+            payment_channel_id: dto.paymentChannelId,
           }); // Menggunakan global API Key (tanpa parameter ke-2)
           
-          paymentLink = invoice.checkout_url || invoice.invoice_url || invoice.payment_url || invoice.url;
+          paymentLink = invoice.invoice_number;
         }
       } catch (e: any) {
         this.logger.error(`Gagal membuat invoice Payhook: ${e.message}`);
@@ -312,6 +314,45 @@ export class OrdersService {
     }
 
     return updated;
+  }
+
+  async getPaymentChannels(tenantUsername: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { username: tenantUsername },
+    });
+    if (!tenant) throw new NotFoundException('Tenant tidak ditemukan.');
+
+    // If Premium and has Dedicated Payhook, use their API key
+    if (tenant.isPremium && tenant.payhookApiKey && tenant.payhookQrisUrl) {
+      const channels = await this.payhookService.getChannels(tenant.payhookApiKey);
+      return { success: true, data: channels };
+    }
+
+    // Otherwise use Global Escrow API Key
+    const channels = await this.payhookService.getChannels();
+    return { success: true, data: channels };
+  }
+
+  async getOrderInvoice(orderNumber: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber },
+      include: { tenant: true },
+    });
+
+    if (!order) throw new NotFoundException('Order tidak ditemukan.');
+
+    if (!order.paymentLink || (order.paymentGateway !== 'PAYHOOK_GLOBAL' && order.paymentGateway !== 'PAYHOOK_DEDICATED')) {
+      throw new BadRequestException('Order ini tidak memiliki invoice otomatis.');
+    }
+
+    let invoice = null;
+    if (order.paymentGateway === 'PAYHOOK_DEDICATED') {
+      invoice = await this.payhookService.getInvoice(order.paymentLink, order.tenant.payhookApiKey || undefined);
+    } else {
+      invoice = await this.payhookService.getInvoice(order.paymentLink);
+    }
+
+    return { success: true, data: invoice };
   }
 
   async uploadPaymentProof(orderNumber: string, proofUrl: string) {

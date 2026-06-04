@@ -77,6 +77,10 @@ export class CreateOrderDto {
   @IsOptional()
   @IsIn(['ONLINE', 'COD'])
   paymentMethod?: string;
+
+  @IsOptional()
+  @IsNumber()
+  paymentChannelId?: number;
 }
 
 export class UpdateOrderStatusDto {

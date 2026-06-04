@@ -63,16 +63,17 @@ export class PayhookService {
     }
   }
 
-  async getInvoice(invoiceNumber: string) {
+  async getInvoice(invoiceNumber: string, customApiKey?: string) {
     const config = await this.getConfig();
-    if (!config.apiKey) {
+    const keyToUse = customApiKey || config.apiKey;
+    if (!keyToUse) {
       throw new HttpException('Payment Gateway configuration is missing', HttpStatus.INTERNAL_SERVER_ERROR);
     }
     
     try {
       const response = await axios.get(`${config.baseUrl}/api/v1/invoices/${invoiceNumber}`, {
         headers: {
-          'Authorization': `Bearer ${config.apiKey}`,
+          'Authorization': `Bearer ${keyToUse}`,
           'Accept': 'application/json',
         },
       });
@@ -87,9 +88,10 @@ export class PayhookService {
     }
   }
 
-  async getChannels() {
+  async getChannels(customApiKey?: string) {
     const config = await this.getConfig();
-    if (!config.apiKey) {
+    const keyToUse = customApiKey || config.apiKey;
+    if (!keyToUse) {
       this.logger.error('PAYHOOK_API_KEY is not defined in database or environment variables');
       throw new HttpException('Payment Gateway configuration is missing', HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -97,7 +99,7 @@ export class PayhookService {
     try {
       const response = await axios.get(`${config.baseUrl}/api/v1/channels`, {
         headers: {
-          'Authorization': `Bearer ${config.apiKey}`,
+          'Authorization': `Bearer ${keyToUse}`,
           'Accept': 'application/json',
         },
       });

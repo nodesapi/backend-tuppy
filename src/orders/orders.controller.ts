@@ -22,6 +22,18 @@ export class OrdersController {
     return this.ordersService.trackOrder(orderNumber, phone);
   }
 
+  // PUBLIC: Get Payment Channels for a Store
+  @Get('channels/:tenantUsername')
+  getChannels(@Param('tenantUsername') tenantUsername: string) {
+    return this.ordersService.getPaymentChannels(tenantUsername);
+  }
+
+  // PUBLIC: Get Raw Invoice for Tracking
+  @Get('track/:orderNumber/invoice')
+  getOrderInvoice(@Param('orderNumber') orderNumber: string) {
+    return this.ordersService.getOrderInvoice(orderNumber);
+  }
+
   // PUBLIC: Upload Bukti Pembayaran Manual
   @Post(':orderNumber/payment-proof')
   uploadPaymentProof(
