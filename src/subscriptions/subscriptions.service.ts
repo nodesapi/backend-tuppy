@@ -185,7 +185,49 @@ export class SubscriptionsService {
       where: { invoiceUrl: invoiceNumber }
     });
 
-    if (!subscription) throw new NotFoundException('Subscription not found');
+    // JIKA BUKAN SUBSCRIPTION, CEK APAKAH INI PESANAN TOKO (ORDER)
+    if (!subscription) {
+      const order = await this.prisma.order.findFirst({
+        where: { paymentLink: { contains: invoiceNumber } },
+        include: { tenant: true }
+      });
+
+      if (!order) throw new NotFoundException('Subscription or Order not found');
+
+      // Fulfillment untuk Pesanan Toko
+      if (order.status === 'PENDING') {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.order.update({
+            where: { id: order.id },
+            data: { status: 'CONFIRMED', paymentMethod: payload.payment_channel || 'PAYHOOK' }
+          });
+
+          // Jika menggunakan Global Payhook, tambahkan saldo ke Wallet Penjual
+          if (order.paymentGateway === 'PAYHOOK_GLOBAL') {
+            await tx.tenant.update({
+              where: { id: order.tenant.id },
+              data: { walletBalance: { increment: order.netAmount } }
+            });
+
+            await tx.walletTransaction.create({
+              data: {
+                tenantId: order.tenant.id,
+                type: 'CREDIT',
+                amount: order.netAmount,
+                description: `Penjualan dari Pesanan ${order.orderNumber} (Escrow)`,
+                referenceId: order.id,
+                status: 'SUCCESS'
+              }
+            });
+          }
+        });
+
+        // Kirim WhatsApp (panggil dari luar tx jika perlu, di sini disederhanakan)
+        // Kita tidak punya WhatsappService di sini, tapi status sudah sukses di DB
+      }
+      return { message: 'Processed as Order' };
+    }
+
     if (subscription.status === 'PAID') return { message: 'Already paid' };
 
     // 3. Eksekusi Fulfillment dengan Transaction
