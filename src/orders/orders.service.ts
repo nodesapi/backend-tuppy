@@ -228,6 +228,13 @@ export class OrdersService {
     const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
     if (!tenant) return [];
 
+    // Lazy expire orders older than 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await this.prisma.order.updateMany({
+      where: { tenantId: tenant.id, status: 'PENDING', createdAt: { lt: twentyFourHoursAgo } },
+      data: { status: 'EXPIRED' }
+    });
+
     const where: any = { tenantId: tenant.id };
     if (status) where.status = status;
 
@@ -425,6 +432,13 @@ export class OrdersService {
     const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
     if (!tenant) return { count: 0 };
 
+    // Lazy expire orders older than 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await this.prisma.order.updateMany({
+      where: { tenantId: tenant.id, status: 'PENDING', createdAt: { lt: twentyFourHoursAgo } },
+      data: { status: 'EXPIRED' }
+    });
+
     const count = await this.prisma.order.count({
       where: { tenantId: tenant.id, status: 'PENDING' },
     });
@@ -439,12 +453,24 @@ export class OrdersService {
     // Clean phone number untuk perbandingan yang lebih aman
     const cleanedPhone = phone.replace(/\D/g, '');
     
-    const order = await this.prisma.order.findUnique({
+    let order = await this.prisma.order.findUnique({
       where: { orderNumber },
       include: { items: true, tenant: { select: { displayName: true } }, review: true },
     });
 
     if (!order) throw new NotFoundException('Pesanan tidak ditemukan');
+
+    // Lazy expire if pending and > 24 hours
+    if (order.status === 'PENDING') {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      if (order.createdAt < twentyFourHoursAgo) {
+        await this.prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'EXPIRED' }
+        });
+        order.status = 'EXPIRED';
+      }
+    }
     
     // Verifikasi nomor HP
     const orderPhoneCleaned = order.customerPhone.replace(/\D/g, '');

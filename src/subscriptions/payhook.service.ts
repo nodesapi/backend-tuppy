@@ -32,6 +32,7 @@ export class PayhookService {
     external_id: string;
     description: string;
     payment_channel_id?: number;
+    duration?: number;
   }, customApiKey?: string) {
     const config = await this.getConfig();
     const keyToUse = customApiKey || config.apiKey;
