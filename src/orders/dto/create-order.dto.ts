@@ -73,6 +73,10 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)
   items: CreateOrderItemDto[];
+
+  @IsOptional()
+  @IsIn(['ONLINE', 'COD'])
+  paymentMethod?: string;
 }
 
 export class UpdateOrderStatusDto {

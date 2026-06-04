@@ -96,36 +96,40 @@ export class OrdersService {
     let paymentGateway = 'MANUAL';
     let paymentLink: string | null = null;
     
-    try {
-      // Jika tenant punya Dedicated Payhook & QRIS (Premium)
-      if (tenant.isPremium && tenant.payhookApiKey && tenant.payhookQrisUrl) {
-        paymentGateway = 'PAYHOOK_DEDICATED';
-        const invoice = await this.payhookService.createInvoice({
-          amount: grandTotal,
-          customer_name: customerName,
-          customer_email: customerEmail || undefined,
-          external_id: orderNumber,
-          description: `Pembelian dari toko ${tenant.displayName}`,
-        }, tenant.payhookApiKey);
-        
-        paymentLink = invoice.checkout_url;
-      } else {
-        // Fallback ke Global Payhook (Escrow)
-        paymentGateway = 'PAYHOOK_GLOBAL';
-        const invoice = await this.payhookService.createInvoice({
-          amount: grandTotal,
-          customer_name: customerName,
-          customer_email: customerEmail || undefined,
-          external_id: orderNumber,
-          description: `Pembelian dari toko ${tenant.displayName} (Escrow)`,
-        }); // Menggunakan global API Key (tanpa parameter ke-2)
-        
-        paymentLink = invoice.checkout_url;
+    if (dto.paymentMethod === 'COD') {
+      paymentGateway = 'COD';
+    } else {
+      try {
+        // Jika tenant punya Dedicated Payhook & QRIS (Premium)
+        if (tenant.isPremium && tenant.payhookApiKey && tenant.payhookQrisUrl) {
+          paymentGateway = 'PAYHOOK_DEDICATED';
+          const invoice = await this.payhookService.createInvoice({
+            amount: grandTotal,
+            customer_name: customerName,
+            customer_email: customerEmail || undefined,
+            external_id: orderNumber,
+            description: `Pembelian dari toko ${tenant.displayName}`,
+          }, tenant.payhookApiKey);
+          
+          paymentLink = invoice.checkout_url;
+        } else {
+          // Fallback ke Global Payhook (Escrow)
+          paymentGateway = 'PAYHOOK_GLOBAL';
+          const invoice = await this.payhookService.createInvoice({
+            amount: grandTotal,
+            customer_name: customerName,
+            customer_email: customerEmail || undefined,
+            external_id: orderNumber,
+            description: `Pembelian dari toko ${tenant.displayName} (Escrow)`,
+          }); // Menggunakan global API Key (tanpa parameter ke-2)
+          
+          paymentLink = invoice.checkout_url;
+        }
+      } catch (e: any) {
+        this.logger.error(`Gagal membuat invoice Payhook: ${e.message}`);
+        // Jika gagal, biarkan MANUAL agar pembeli bisa upload bukti transfer
+        paymentGateway = 'MANUAL';
       }
-    } catch (e: any) {
-      this.logger.error(`Gagal membuat invoice Payhook: ${e.message}`);
-      // Jika gagal, biarkan MANUAL agar pembeli bisa upload bukti transfer
-      paymentGateway = 'MANUAL';
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
