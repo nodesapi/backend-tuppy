@@ -112,7 +112,11 @@ export class OrdersService {
             payment_channel_id: dto.paymentChannelId,
           }, tenant.payhookApiKey);
           
-          paymentLink = invoice.invoice_number;
+          paymentLink = JSON.stringify({
+            invoice_number: invoice.invoice_number,
+            payment_instruction: invoice.payment_instruction,
+            pay_amount: invoice.pay_amount
+          });
         } else {
           // Fallback ke Global Payhook (Escrow)
           paymentGateway = 'PAYHOOK_GLOBAL';
@@ -125,7 +129,11 @@ export class OrdersService {
             payment_channel_id: dto.paymentChannelId,
           }); // Menggunakan global API Key (tanpa parameter ke-2)
           
-          paymentLink = invoice.invoice_number;
+          paymentLink = JSON.stringify({
+            invoice_number: invoice.invoice_number,
+            payment_instruction: invoice.payment_instruction,
+            pay_amount: invoice.pay_amount
+          });
         }
       } catch (e: any) {
         this.logger.error(`Gagal membuat invoice Payhook: ${e.message}`);
@@ -345,14 +353,29 @@ export class OrdersService {
       throw new BadRequestException('Order ini tidak memiliki invoice otomatis.');
     }
 
-    let invoice = null;
-    if (order.paymentGateway === 'PAYHOOK_DEDICATED') {
-      invoice = await this.payhookService.getInvoice(order.paymentLink, order.tenant.payhookApiKey || undefined);
-    } else {
-      invoice = await this.payhookService.getInvoice(order.paymentLink);
+    let storedData: any = {};
+    try {
+      storedData = JSON.parse(order.paymentLink);
+    } catch (e) {
+      storedData = { invoice_number: order.paymentLink };
     }
 
-    return { success: true, data: invoice };
+    const invoiceNumber = storedData.invoice_number || order.paymentLink;
+
+    let payhookInvoice = null;
+    if (order.paymentGateway === 'PAYHOOK_DEDICATED') {
+      payhookInvoice = await this.payhookService.getInvoice(invoiceNumber, order.tenant.payhookApiKey || undefined);
+    } else {
+      payhookInvoice = await this.payhookService.getInvoice(invoiceNumber);
+    }
+
+    const finalInvoice = {
+      ...(payhookInvoice || {}),
+      payment_instruction: storedData.payment_instruction || (payhookInvoice && payhookInvoice.payment_instruction) || null,
+      pay_amount: storedData.pay_amount || (payhookInvoice && payhookInvoice.pay_amount) || order.grandTotal
+    };
+
+    return { success: true, data: finalInvoice };
   }
 
   async uploadPaymentProof(orderNumber: string, proofUrl: string) {
