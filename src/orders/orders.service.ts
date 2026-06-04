@@ -165,6 +165,24 @@ export class OrdersService {
         },
       });
 
+      // Kurangi stok produk
+      for (const item of items) {
+        if (item.productId) {
+          const product = await tx.product.findUnique({
+            where: { id: item.productId }
+          });
+          if (product && product.stock !== null) {
+            if (product.stock < item.quantity) {
+              throw new BadRequestException(`Stok produk "${product.title}" tidak mencukupi (sisa ${product.stock})`);
+            }
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } }
+            });
+          }
+        }
+      }
+
       // Buat semua OrderItem
       await tx.orderItem.createMany({
         data: items.map((item: any) => ({

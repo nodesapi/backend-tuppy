@@ -41,10 +41,10 @@ export class ProductsController {
       fileUrl,
       imageUrl: images && images.length > 0 ? images[0] : imageUrl,
       images: images || [],
-      fileSize: fileSize ? Number(fileSize) : undefined,
+      fileSize: fileSize !== undefined ? Number(fileSize) : undefined,
       isPhysical: isPhysical === true || isPhysical === 'true',
-      weight: weight ? Number(weight) : undefined,
-      stock: stock ? Number(stock) : undefined,
+      weight: weight !== undefined ? Number(weight) : undefined,
+      stock: stock !== undefined ? Number(stock) : undefined,
       sku
     });
   }
@@ -56,11 +56,11 @@ export class ProductsController {
     return this.productsService.update(tenantId, id, {
       title,
       description,
-      price: price ? Number(price) : undefined,
+      price: price !== undefined ? Number(price) : undefined,
       imageUrl: images && images.length > 0 ? images[0] : undefined,
       images: images,
-      weight: weight ? Number(weight) : undefined,
-      stock: stock ? Number(stock) : undefined,
+      weight: weight !== undefined ? Number(weight) : undefined,
+      stock: stock !== undefined ? Number(stock) : undefined,
       sku
     });
   }
