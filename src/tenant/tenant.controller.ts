@@ -22,8 +22,13 @@ export class TenantController {
   }
 
   @Patch()
-  updateTenant(@Request() req: any, @Body() data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; address?: string; notifMethod?: string; customDomain?: string; seoConfig?: any; pgProvider?: string }) {
+  updateTenant(@Request() req: any, @Body() data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; address?: string; province?: string; city?: string; district?: string; postalCode?: string; latitude?: number; longitude?: number; notifMethod?: string; customDomain?: string; seoConfig?: any; pgProvider?: string }) {
     return this.tenantService.updateTenant(req.user.id, data);
+  }
+
+  @Patch('password')
+  changePassword(@Request() req: any, @Body() data: any) {
+    return this.tenantService.changePassword(req.user.id, data.oldPassword, data.newPassword);
   }
 
   @Get('verify-domain')

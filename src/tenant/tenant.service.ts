@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { promises as dns } from 'dns';
 import { PayhookService } from '../subscriptions/payhook.service';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class TenantService {
@@ -11,13 +12,14 @@ export class TenantService {
   ) {}
 
   async getTenantByUserId(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, isTwoFactorEnabled: true }});
     const tenant = await this.prisma.tenant.findUnique({
       where: { userId },
     });
-    return tenant || null;
+    return tenant ? { ...tenant, email: user?.email, isTwoFactorEnabled: user?.isTwoFactorEnabled } : null;
   }
 
-  async updateTenant(userId: string, data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; address?: string; notifMethod?: string; customDomain?: string; seoConfig?: any; pgProvider?: string }) {
+  async updateTenant(userId: string, data: { username?: string; displayName?: string; bio?: string; avatarUrl?: string; bankName?: string; bankAccount?: string; bankAccountName?: string; waPhoneNumber?: string; address?: string; province?: string; city?: string; district?: string; postalCode?: string; latitude?: number; longitude?: number; notifMethod?: string; customDomain?: string; seoConfig?: any; pgProvider?: string }) {
     const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
     
     // Check username uniqueness if provided
@@ -83,6 +85,24 @@ export class TenantService {
       where: { userId },
       data: { avatarUrl },
     });
+  }
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      throw new BadRequestException('Password lama salah');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { success: true, message: 'Password berhasil diubah' };
   }
 
   async verifyDomain(userId: string) {
