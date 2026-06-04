@@ -6,6 +6,10 @@ export class CreateOrderItemDto {
   @IsString()
   blockId?: string;
 
+  @IsOptional()
+  @IsString()
+  productId?: string;
+
   @IsString()
   productName: string;
 
@@ -45,6 +49,18 @@ export class CreateOrderDto {
   @IsOptional()
   @IsIn(['DIRECT', 'SHOPEE', 'TOKOPEDIA', 'WHATSAPP', 'MARKETPLACE'])
   channel?: string;
+
+  @IsOptional()
+  @IsNumber()
+  shippingCost?: number;
+
+  @IsOptional()
+  @IsString()
+  courier?: string;
+
+  @IsOptional()
+  @IsString()
+  destinationCityId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

@@ -28,6 +28,7 @@ import { DocsModule } from './docs/docs.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { ProductsModule } from './products/products.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { ShippingModule } from './shipping/shipping.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     WebhookModule,
     ProductsModule,
     ReviewsModule,
+    ShippingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

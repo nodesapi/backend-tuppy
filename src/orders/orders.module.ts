@@ -5,9 +5,10 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { EmailModule } from '../email/email.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { ShippingModule } from '../shipping/shipping.module';
 
 @Module({
-  imports: [PrismaModule, WhatsappModule, EmailModule, SubscriptionsModule],
+  imports: [PrismaModule, WhatsappModule, EmailModule, SubscriptionsModule, ShippingModule],
   controllers: [OrdersController],
   providers: [OrdersService],
 })

@@ -48,6 +48,16 @@ export class OrdersController {
     return this.ordersService.getPendingCount(req.user.id);
   }
 
+  // ADMIN: List semua order lintas tenant (hanya untuk role ADMIN)
+  @UseGuards(AuthGuard('jwt'))
+  @Get('admin/all')
+  getAllOrders(@Request() req: any, @Query('status') status?: string) {
+    if (req.user.role !== 'ADMIN') {
+      throw new BadRequestException('Akses ditolak. Hanya untuk Admin.');
+    }
+    return this.ordersService.getAllOrders(status);
+  }
+
   // PRIVATE: Detail satu order
   @UseGuards(AuthGuard('jwt'))
   @Get(':id')

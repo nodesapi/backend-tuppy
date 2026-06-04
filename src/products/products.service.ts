@@ -5,22 +5,26 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(tenantId: string) {
-    return this.prisma.digitalProduct.findMany({
-      where: { tenantId },
+  async findAll(tenantId: string, isPhysical?: boolean) {
+    const whereClause: any = { tenantId };
+    if (isPhysical !== undefined) {
+      whereClause.isPhysical = isPhysical;
+    }
+    return this.prisma.product.findMany({
+      where: whereClause,
       orderBy: { createdAt: 'desc' }
     });
   }
 
   async findOne(tenantId: string, id: string) {
-    const product = await this.prisma.digitalProduct.findFirst({
+    const product = await this.prisma.product.findFirst({
       where: { id, tenantId }
     });
     if (!product) throw new NotFoundException('Produk tidak ditemukan');
     return product;
   }
 
-  async create(tenantId: string, data: { title: string, description?: string, price: number, fileUrl: string, imageUrl?: string, fileSize: number }) {
+  async create(tenantId: string, data: { title: string, description?: string, price: number, fileUrl?: string, imageUrl?: string, fileSize?: number, isPhysical?: boolean, weight?: number, stock?: number, sku?: string }) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
       select: { isPremium: true, storageUsed: true }
@@ -28,46 +32,57 @@ export class ProductsService {
 
     if (!tenant) throw new NotFoundException('Tenant tidak ditemukan');
 
-    // 500MB = 500 * 1024 * 1024 = 524288000 bytes
-    // 5GB = 5 * 1024 * 1024 * 1024 = 5368709120 bytes
-    const maxStorage = tenant.isPremium ? 5368709120 : 524288000;
-    
-    if (tenant.storageUsed + data.fileSize > maxStorage) {
-      throw new BadRequestException(`Kapasitas penyimpanan Anda penuh. Silakan upgrade ke Premium untuk mendapatkan penyimpanan 5GB.`);
+    if (!data.isPhysical && data.fileSize) {
+      // 500MB = 500 * 1024 * 1024 = 524288000 bytes
+      // 5GB = 5 * 1024 * 1024 * 1024 = 5368709120 bytes
+      const maxStorage = tenant.isPremium ? 5368709120 : 524288000;
+      
+      if (tenant.storageUsed + data.fileSize > maxStorage) {
+        throw new BadRequestException(`Kapasitas penyimpanan Anda penuh. Silakan upgrade ke Premium untuk mendapatkan penyimpanan 5GB.`);
+      }
     }
 
     // Gunakan transaction untuk memastikan data produk dan storage tersimpan bersamaan
     return this.prisma.$transaction(async (tx) => {
-      const newProduct = await tx.digitalProduct.create({
+      const newProduct = await tx.product.create({
         data: {
           tenantId,
           title: data.title,
           description: data.description,
           price: data.price,
           fileUrl: data.fileUrl,
-          imageUrl: data.imageUrl
+          imageUrl: data.imageUrl,
+          isPhysical: data.isPhysical || false,
+          weight: data.weight || null,
+          stock: data.stock || null,
+          sku: data.sku || null
         }
       });
 
-      await tx.tenant.update({
-        where: { id: tenantId },
-        data: {
-          storageUsed: { increment: data.fileSize }
-        }
-      });
+      if (!data.isPhysical && data.fileSize) {
+        await tx.tenant.update({
+          where: { id: tenantId },
+          data: {
+            storageUsed: { increment: data.fileSize }
+          }
+        });
+      }
 
       return newProduct;
     });
   }
 
-  async update(tenantId: string, id: string, data: { title?: string, description?: string, price?: number }) {
+  async update(tenantId: string, id: string, data: { title?: string, description?: string, price?: number, weight?: number, stock?: number, sku?: string }) {
     const product = await this.findOne(tenantId, id);
-    return this.prisma.digitalProduct.update({
+    return this.prisma.product.update({
       where: { id: product.id },
       data: {
         title: data.title,
         description: data.description,
-        price: data.price
+        price: data.price,
+        weight: data.weight,
+        stock: data.stock,
+        sku: data.sku
       }
     });
   }
@@ -76,7 +91,7 @@ export class ProductsService {
     const product = await this.findOne(tenantId, id);
     
     return this.prisma.$transaction(async (tx) => {
-      await tx.digitalProduct.delete({
+      await tx.product.delete({
         where: { id: product.id }
       });
 

@@ -32,6 +32,17 @@ export class AdminService {
     return { totalUsers, totalPremium, totalOrders, openTickets: totalTickets, totalRevenue };
   }
 
+  async getAllTransactions(userId: string) {
+    await this.ensureAdmin(userId);
+    return this.prisma.order.findMany({
+      include: {
+        tenant: { select: { displayName: true, username: true } },
+        items: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
   async getAllSubscriptions(userId: string) {
     await this.ensureAdmin(userId);
     return this.prisma.subscription.findMany({
