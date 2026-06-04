@@ -126,6 +126,7 @@ model DigitalProduct {
   description String?
   price       Float
   fileUrl     String
+  imageUrl    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

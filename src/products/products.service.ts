@@ -20,7 +20,7 @@ export class ProductsService {
     return product;
   }
 
-  async create(tenantId: string, data: { title: string, description?: string, price: number, fileUrl: string, fileSize: number }) {
+  async create(tenantId: string, data: { title: string, description?: string, price: number, fileUrl: string, imageUrl?: string, fileSize: number }) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
       select: { isPremium: true, storageUsed: true }
@@ -44,7 +44,8 @@ export class ProductsService {
           title: data.title,
           description: data.description,
           price: data.price,
-          fileUrl: data.fileUrl
+          fileUrl: data.fileUrl,
+          imageUrl: data.imageUrl
         }
       });
 

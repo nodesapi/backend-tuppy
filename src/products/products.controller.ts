@@ -32,12 +32,13 @@ export class ProductsController {
   @Post()
   async create(@Request() req: any, @Body() body: any) {
     const tenantId = await this.getTenantId(req.user.id);
-    const { title, description, price, fileUrl, fileSize } = body;
+    const { title, description, price, fileUrl, fileSize, imageUrl } = body;
     return this.productsService.create(tenantId, {
       title,
       description,
       price: Number(price),
       fileUrl,
+      imageUrl,
       fileSize: Number(fileSize)
     });
   }
