@@ -111,7 +111,7 @@ export class OrdersService {
             description: `Pembelian dari toko ${tenant.displayName}`,
           }, tenant.payhookApiKey);
           
-          paymentLink = invoice.checkout_url;
+          paymentLink = invoice.checkout_url || invoice.invoice_url || invoice.payment_url || invoice.url;
         } else {
           // Fallback ke Global Payhook (Escrow)
           paymentGateway = 'PAYHOOK_GLOBAL';
@@ -123,7 +123,7 @@ export class OrdersService {
             description: `Pembelian dari toko ${tenant.displayName} (Escrow)`,
           }); // Menggunakan global API Key (tanpa parameter ke-2)
           
-          paymentLink = invoice.checkout_url;
+          paymentLink = invoice.checkout_url || invoice.invoice_url || invoice.payment_url || invoice.url;
         }
       } catch (e: any) {
         this.logger.error(`Gagal membuat invoice Payhook: ${e.message}`);
