@@ -52,7 +52,10 @@ export class AnalyticsService {
     // Hitung Total Penjualan & Saldo
     const totalSalesAggr = await this.prisma.order.aggregate({
       _sum: { grandTotal: true },
-      where: { tenantId, status: 'DELIVERED' }
+      where: { 
+        tenantId, 
+        status: { in: ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'] }
+      }
     });
     
     const totalSales = totalSalesAggr._sum.grandTotal || 0;
