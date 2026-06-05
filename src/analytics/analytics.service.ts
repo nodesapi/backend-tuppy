@@ -151,10 +151,30 @@ export class AnalyticsService {
         orderBy: { _count: { os: 'desc' } }
       });
 
+      // Aggregasi Kota (Khusus Indonesia)
+      const cityGroup = await this.prisma.analyticsEvent.groupBy({
+        by: ['city'],
+        where: { tenantId, country: 'ID', city: { notIn: ['Unknown', ''] } },
+        _count: { city: true },
+        orderBy: { _count: { city: 'desc' } },
+        take: 38 // 38 Provinsi/Region
+      });
+
+      // Aggregasi Referrer (Sumber Trafik)
+      const referrerGroup = await this.prisma.analyticsEvent.groupBy({
+        by: ['referrer'],
+        where: { tenantId, referrer: { not: null } },
+        _count: { referrer: true },
+        orderBy: { _count: { referrer: 'desc' } },
+        take: 5
+      });
+
       demographics = {
         countries: countryGroup.map(g => ({ name: g.country, count: g._count.country })),
+        cities: cityGroup.map(g => ({ name: g.city, count: g._count.city })),
         devices: deviceGroup.map(g => ({ name: g.device, count: g._count.device })),
-        os: osGroup.map(g => ({ name: g.os, count: g._count.os }))
+        os: osGroup.map(g => ({ name: g.os, count: g._count.os })),
+        referrers: referrerGroup.map(g => ({ name: g.referrer, count: g._count.referrer }))
       };
     }
 
