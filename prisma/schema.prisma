@@ -58,6 +58,14 @@ model Tenant {
   payhookWebhookSecret String?
   payhookQrisUrl       String?
 
+  // KYC / Verifikasi Identitas
+  kycStatus         String  @default("UNVERIFIED") // UNVERIFIED | PENDING | VERIFIED | REJECTED
+  ktpName           String?
+  ktpNumber         String?
+  ktpImageUrl       String?
+  kycRejectReason   String?
+
+
   bankName            String?
   bankAccount         String?
   bankAccountName     String?

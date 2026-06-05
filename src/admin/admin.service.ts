@@ -157,4 +157,41 @@ export class AdminService {
 
     return result;
   }
+
+  async getKycRequests(userId: string) {
+    await this.ensureAdmin(userId);
+    return this.prisma.tenant.findMany({
+      where: { kycStatus: 'PENDING' },
+      select: {
+        id: true,
+        displayName: true,
+        username: true,
+        bankName: true,
+        bankAccount: true,
+        bankAccountName: true,
+        ktpName: true,
+        ktpNumber: true,
+        ktpImageUrl: true,
+        kycStatus: true,
+        user: { select: { email: true } }
+      },
+      orderBy: { updatedAt: 'asc' }
+    });
+  }
+
+  async updateKycStatus(userId: string, tenantId: string, status: string, reason?: string) {
+    await this.ensureAdmin(userId);
+    
+    if (status !== 'VERIFIED' && status !== 'REJECTED') {
+      throw new BadRequestException('Status tidak valid');
+    }
+
+    return this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        kycStatus: status,
+        kycRejectReason: status === 'REJECTED' ? reason : null
+      }
+    });
+  }
 }

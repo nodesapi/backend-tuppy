@@ -77,4 +77,18 @@ export class AdminController {
   ) {
     return this.adminService.processWithdrawalRequest(req.user.id, requestId, proofUrl);
   }
+
+  @Get('kyc')
+  getKycRequests(@Request() req: any) {
+    return this.adminService.getKycRequests(req.user.id);
+  }
+
+  @Patch('kyc/:tenantId')
+  updateKycStatus(
+    @Request() req: any,
+    @Param('tenantId') tenantId: string,
+    @Body() body: { status: string; reason?: string }
+  ) {
+    return this.adminService.updateKycStatus(req.user.id, tenantId, body.status, body.reason);
+  }
 }

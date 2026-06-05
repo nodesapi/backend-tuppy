@@ -144,6 +144,22 @@ export class TenantService {
     throw new BadRequestException('Gagal mengunggah QRIS ke server Payhook.');
   }
 
+  async submitKyc(userId: string, ktpName: string, ktpNumber: string, ktpImageUrl: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    
+    return this.prisma.tenant.update({
+      where: { userId },
+      data: {
+        ktpName,
+        ktpNumber,
+        ktpImageUrl,
+        kycStatus: 'PENDING',
+        kycRejectReason: null
+      }
+    });
+  }
+
   async provisionPaymentAccount(userId: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { userId },
@@ -152,6 +168,7 @@ export class TenantService {
 
     if (!tenant) throw new NotFoundException('Tenant not found');
     if (!tenant.isPremium) throw new BadRequestException('Hanya pengguna Premium yang dapat mengaktifkan fitur ini.');
+    if (tenant.kycStatus !== 'VERIFIED') throw new BadRequestException('Anda harus menyelesaikan Verifikasi Identitas (KYC) terlebih dahulu.');
     if (tenant.payhookTenantId) throw new BadRequestException('Akun Payhook sudah diaktifkan.');
 
     try {

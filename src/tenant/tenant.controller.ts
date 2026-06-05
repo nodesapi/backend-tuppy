@@ -86,6 +86,37 @@ export class TenantController {
     return this.tenantService.uploadQrisToPayhook(req.user.id, file);
   }
 
+  @Post('payment/kyc')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './public/uploads/kyc',
+      filename: (req, file, cb) => {
+        const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
+        cb(null, `${randomName}${extname(file.originalname)}`);
+      }
+    }),
+    fileFilter: (req, file, cb) => {
+      if (!file.originalname.match(/\.(jpg|jpeg|png)$/i)) {
+        return cb(new BadRequestException('Only image files are allowed for KYC!'), false);
+      }
+      cb(null, true);
+    },
+    limits: {
+      fileSize: 2 * 1024 * 1024 // 2MB
+    }
+  }))
+  async uploadKyc(
+    @Request() req: any,
+    @Body() data: { ktpName: string; ktpNumber: string },
+    @UploadedFile() file: Express.Multer.File
+  ) {
+    if (!file) throw new BadRequestException('Foto KTP wajib diunggah');
+    if (!data.ktpName || !data.ktpNumber) throw new BadRequestException('Nama dan NIK KTP wajib diisi');
+    
+    const ktpImageUrl = `/uploads/kyc/${file.filename}`;
+    return this.tenantService.submitKyc(req.user.id, data.ktpName, data.ktpNumber, ktpImageUrl);
+  }
+
   @Post('payment/provision')
   async provisionPaymentAccount(@Request() req: any) {
     return this.tenantService.provisionPaymentAccount(req.user.id);
