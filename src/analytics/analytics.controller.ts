@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, UseGuards, Request, Headers, Ip } from '@n
 import { AnalyticsService } from './analytics.service';
 import { AuthGuard } from '@nestjs/passport';
 
-import * as UAParser from 'ua-parser-js';
+import { UAParser } from 'ua-parser-js';
 import * as geoip from 'geoip-lite';
 
 @Controller('analytics')
