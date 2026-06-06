@@ -29,6 +29,7 @@ import { WebhookModule } from './webhook/webhook.module';
 import { ProductsModule } from './products/products.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ShippingModule } from './shipping/shipping.module';
+import { ScraperModule } from './scraper/scraper.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { ShippingModule } from './shipping/shipping.module';
     ProductsModule,
     ReviewsModule,
     ShippingModule,
+    ScraperModule,
   ],
   controllers: [AppController],
   providers: [AppService],
