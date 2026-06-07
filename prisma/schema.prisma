@@ -397,8 +397,9 @@ model Invitation {
   gallery     Json?
   
   // Custom Media
-  musicUrl    String?
-  qrisImage   String?
+  musicUrl      String?
+  backgroundUrl String?
+  qrisImage     String?
   
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -421,3 +422,20 @@ model InvitationGuest {
 
   invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 }
+
+model InvitationMusic {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InvitationBackground {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+

@@ -194,4 +194,47 @@ export class AdminService {
       }
     });
   }
+
+  // Invitation Preset Music Management
+  async addMusicPreset(userId: string, data: { name: string; url: string }) {
+    await this.ensureAdmin(userId);
+    if (!data.name || !data.url) throw new BadRequestException('Name and URL are required');
+    return this.prisma.invitationMusic.create({ data });
+  }
+
+  async getMusicPresets(userId: string) {
+    await this.ensureAdmin(userId);
+    return this.prisma.invitationMusic.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async deleteMusicPreset(userId: string, id: string) {
+    await this.ensureAdmin(userId);
+    return this.prisma.invitationMusic.delete({
+      where: { id }
+    });
+  }
+
+  // Invitation Preset Background Management
+  async addBackgroundPreset(userId: string, data: { name: string; url: string }) {
+    await this.ensureAdmin(userId);
+    if (!data.name || !data.url) throw new BadRequestException('Name and URL are required');
+    return this.prisma.invitationBackground.create({ data });
+  }
+
+  async getBackgroundPresets(userId: string) {
+    await this.ensureAdmin(userId);
+    return this.prisma.invitationBackground.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async deleteBackgroundPreset(userId: string, id: string) {
+    await this.ensureAdmin(userId);
+    return this.prisma.invitationBackground.delete({
+      where: { id }
+    });
+  }
 }
+

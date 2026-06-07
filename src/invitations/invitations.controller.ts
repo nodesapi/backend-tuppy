@@ -18,8 +18,19 @@ export class InvitationsController {
     return this.invitationsService.saveInvitation(req.user.id, data);
   }
 
+  @Get('presets/music')
+  async getMusicPresets() {
+    return this.invitationsService.getMusicPresets();
+  }
+
+  @Get('presets/background')
+  async getBackgroundPresets() {
+    return this.invitationsService.getBackgroundPresets();
+  }
+
   @Get('slug/:slug')
   async getPublicInvitation(@Param('slug') slug: string) {
     return this.invitationsService.getPublicInvitation(slug);
   }
 }
+

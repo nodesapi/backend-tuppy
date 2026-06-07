@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminService } from './admin.service';
 
@@ -91,4 +91,47 @@ export class AdminController {
   ) {
     return this.adminService.updateKycStatus(req.user.id, tenantId, body.status, body.reason);
   }
+
+  @Post('invitations/music')
+  addMusicPreset(
+    @Request() req: any,
+    @Body() data: { name: string; url: string }
+  ) {
+    return this.adminService.addMusicPreset(req.user.id, data);
+  }
+
+  @Get('invitations/music')
+  getMusicPresets(@Request() req: any) {
+    return this.adminService.getMusicPresets(req.user.id);
+  }
+
+  @Delete('invitations/music/:id')
+  deleteMusicPreset(
+    @Request() req: any,
+    @Param('id') id: string
+  ) {
+    return this.adminService.deleteMusicPreset(req.user.id, id);
+  }
+
+  @Post('invitations/background')
+  addBackgroundPreset(
+    @Request() req: any,
+    @Body() data: { name: string; url: string }
+  ) {
+    return this.adminService.addBackgroundPreset(req.user.id, data);
+  }
+
+  @Get('invitations/background')
+  getBackgroundPresets(@Request() req: any) {
+    return this.adminService.getBackgroundPresets(req.user.id);
+  }
+
+  @Delete('invitations/background/:id')
+  deleteBackgroundPreset(
+    @Request() req: any,
+    @Param('id') id: string
+  ) {
+    return this.adminService.deleteBackgroundPreset(req.user.id, id);
+  }
 }
+

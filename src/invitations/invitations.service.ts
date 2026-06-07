@@ -66,6 +66,7 @@ export class InvitationsService {
       banks: data.banks || [],
       gallery: data.gallery || [],
       musicUrl: data.musicUrl || '',
+      backgroundUrl: data.backgroundUrl || '',
       qrisImage: data.qrisImage || '',
       isActive: true
     };
@@ -115,4 +116,17 @@ export class InvitationsService {
     }
     return invitation;
   }
+
+  async getMusicPresets() {
+    return this.prisma.invitationMusic.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async getBackgroundPresets() {
+    return this.prisma.invitationBackground.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+  }
 }
+
