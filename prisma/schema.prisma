@@ -94,6 +94,7 @@ model Tenant {
   withdrawalRequests WithdrawalRequest[]
   whatsappLogs       WhatsappLog[]
   reviews            Review[]
+  invitations        Invitation[]
 
   // Status Penangguhan (Suspend)
   isSuspended   Boolean @default(false)
@@ -375,4 +376,48 @@ model Review {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// SISTEM UNDANGAN DIGITAL (DIGITAL INVITATION)
+// ----------------------------------------------------
+
+model Invitation {
+  id          String   @id @default(uuid())
+  tenantId    String
+  slug        String   @unique // URL Unik: tuppy.my.id/undangan/[slug]
+  themeId     String   @default("theme-classic")
+  title       String // e.g., "Pernikahan Romeo & Juliet"
+  
+  // Data JSON (Mempelai, Acara, Amplop, Galeri)
+  groom       Json?    
+  bride       Json?
+  events      Json?
+  banks       Json?
+  gallery     Json?
+  
+  // Custom Media
+  musicUrl    String?
+  qrisImage   String?
+  
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  guests      InvitationGuest[]
+}
+
+model InvitationGuest {
+  id           String   @id @default(uuid())
+  invitationId String
+  name         String
+  phone        String?
+  status       String   @default("Belum Dikirim") // Belum Dikirim | Sudah Dikirim
+  rsvpStatus   String?  // Hadir | Tidak Hadir | Ragu
+  rsvpMessage  String?  @db.Text
+  guestsCount  Int?     @default(1)
+  createdAt    DateTime @default(now())
+
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 }
