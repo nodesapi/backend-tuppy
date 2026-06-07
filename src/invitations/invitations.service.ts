@@ -30,6 +30,18 @@ export class InvitationsService {
     });
 
     let slug = existing?.slug;
+    
+    // Allow custom slug from frontend
+    if (data.slug && data.slug.trim() !== '') {
+      const requestedSlug = data.slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+      // Check if the requested slug is taken by ANOTHER invitation
+      const checkSlug = await this.prisma.invitation.findUnique({ where: { slug: requestedSlug } });
+      if (checkSlug && checkSlug.id !== existing?.id) {
+        throw new Error('SLUG_TAKEN');
+      }
+      slug = requestedSlug;
+    }
+
     if (!slug) {
       // Generate slug based on groom and bride nicknames
       const groomName = data.groom?.nickname || 'romeo';
@@ -37,8 +49,8 @@ export class InvitationsService {
       slug = `${groomName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${brideName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
       
       // Ensure uniqueness
-      const checkSlug = await this.prisma.invitation.findUnique({ where: { slug } });
-      if (checkSlug) {
+      let checkSlug = await this.prisma.invitation.findUnique({ where: { slug } });
+      if (checkSlug && checkSlug.id !== existing?.id) {
         slug = `${slug}-${Math.floor(Math.random() * 10000)}`;
       }
     }
