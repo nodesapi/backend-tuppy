@@ -78,7 +78,7 @@ export class InvitationsService {
       
       if (data.guests.length > 0) {
         await this.prisma.invitationGuest.createMany({
-          data: data.guests.map(g => ({
+          data: data.guests.map((g: any) => ({
             invitationId: invitation.id,
             name: g.name,
             phone: g.phone || '',
