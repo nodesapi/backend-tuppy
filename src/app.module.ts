@@ -30,6 +30,7 @@ import { ProductsModule } from './products/products.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ShippingModule } from './shipping/shipping.module';
 import { ScraperModule } from './scraper/scraper.module';
+import { InvitationsModule } from './invitations/invitations.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { ScraperModule } from './scraper/scraper.module';
     ReviewsModule,
     ShippingModule,
     ScraperModule,
+    InvitationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
