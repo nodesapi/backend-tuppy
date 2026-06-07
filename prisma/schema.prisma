@@ -100,11 +100,18 @@ model Tenant {
   suspendReason String?
 }
 
+// Enum Tipe Halaman
+enum PageType {
+  BIO_LINK
+  INVITATION
+}
+
 // Halaman yang dibuat Tenant
 model Page {
   id          String   @id @default(uuid())
   tenantId    String
   slug        String // "index", "sale", "booking"
+  type        PageType @default(BIO_LINK)
   title       String?
   themeConfig Json?
   isPublished Boolean  @default(true)
