@@ -402,6 +402,9 @@ model Invitation {
   backgroundUrl String?
   qrisImage     String?
   
+  // Custom Design (Fonts & Colors)
+  design        Json?
+  
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

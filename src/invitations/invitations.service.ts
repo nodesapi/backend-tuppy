@@ -69,6 +69,7 @@ export class InvitationsService {
       musicUrl: data.musicUrl || '',
       backgroundUrl: data.backgroundUrl || '',
       qrisImage: data.qrisImage || '',
+      design: data.design || {},
       isActive: true
     };
 
