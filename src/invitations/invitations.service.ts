@@ -59,6 +59,7 @@ export class InvitationsService {
       tenantId: tenant.id,
       slug,
       themeId: data.themeId || 'theme-classic',
+      animation: data.animation || 'none',
       title: data.title || `Pernikahan ${data.groom?.nickname || 'Romeo'} & ${data.bride?.nickname || 'Juliet'}`,
       groom: data.groom || {},
       bride: data.bride || {},

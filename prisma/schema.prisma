@@ -387,6 +387,7 @@ model Invitation {
   tenantId    String
   slug        String   @unique // URL Unik: tuppy.my.id/undangan/[slug]
   themeId     String   @default("theme-classic")
+  animation   String   @default("sakura")
   title       String // e.g., "Pernikahan Romeo & Juliet"
   
   // Data JSON (Mempelai, Acara, Amplop, Galeri)
