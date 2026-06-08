@@ -32,5 +32,15 @@ export class InvitationsController {
   async getPublicInvitation(@Param('slug') slug: string) {
     return this.invitationsService.getPublicInvitation(slug);
   }
+
+  @Post('slug/:slug/rsvp')
+  async submitRsvp(@Param('slug') slug: string, @Body() payload: any) {
+    return this.invitationsService.submitRsvp(slug, payload);
+  }
+
+  @Get('slug/:slug/rsvp')
+  async getRsvps(@Param('slug') slug: string) {
+    return this.invitationsService.getRsvps(slug);
+  }
 }
 

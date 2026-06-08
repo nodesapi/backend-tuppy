@@ -130,5 +130,43 @@ export class InvitationsService {
       orderBy: { createdAt: 'desc' }
     });
   }
+
+  async submitRsvp(slug: string, payload: any) {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { slug }
+    });
+    if (!invitation) throw new NotFoundException('Undangan tidak ditemukan');
+
+    // Buat record di tabel Lead agar masuk ke inbox
+    const lead = await this.prisma.lead.create({
+      data: {
+        tenantId: invitation.tenantId,
+        blockId: 'rsvp-form',
+        source: 'RSVP',
+        name: payload.name || 'Tamu',
+        notes: payload.wish || '',
+        status: payload.attendance === 'yes' ? 'Hadir' : (payload.attendance === 'no' ? 'Tidak Hadir' : 'Ragu'),
+      }
+    });
+
+    return { success: true, lead };
+  }
+
+  async getRsvps(slug: string) {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { slug }
+    });
+    if (!invitation) throw new NotFoundException('Undangan tidak ditemukan');
+
+    return this.prisma.lead.findMany({
+      where: {
+        tenantId: invitation.tenantId,
+        source: 'RSVP'
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+  }
 }
 
