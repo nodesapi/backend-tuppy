@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, UseGuards, Request, Param, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { InvitationsService } from './invitations.service';
 
@@ -36,6 +36,12 @@ export class InvitationsController {
     return this.invitationsService.updateInvitation(req.user.id, id, data);
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @Delete(':id')
+  async deleteInvitation(@Request() req: any, @Param('id') id: string) {
+    return this.invitationsService.deleteInvitation(req.user.id, id);
+  }
+
   @Get('presets/music')
   async getMusicPresets() {
     return this.invitationsService.getMusicPresets();
@@ -67,4 +73,3 @@ export class InvitationsController {
     return this.invitationsService.upgradeWithWallet(req.user.id, id, plan);
   }
 }
-
