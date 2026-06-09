@@ -5,86 +5,136 @@ import { PrismaService } from '../prisma/prisma.service';
 export class InvitationsService {
   constructor(private prisma: PrismaService) {}
 
-  async getMyInvitation(userId: string) {
+  async getInvitations(userId: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { userId }
     });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
-    let invitation = await this.prisma.invitation.findFirst({
+    return this.prisma.invitation.findMany({
       where: { tenantId: tenant.id },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async getInvitationById(userId: string, id: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { userId }
+    });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const invitation = await this.prisma.invitation.findFirst({
+      where: { id, tenantId: tenant.id },
       include: { guests: true }
+    });
+    if (!invitation) throw new NotFoundException('Invitation not found');
+
+    return invitation;
+  }
+
+  async checkSlug(slug: string) {
+    const requestedSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const checkSlug = await this.prisma.invitation.findUnique({ where: { slug: requestedSlug } });
+    if (checkSlug) {
+      return { available: false };
+    }
+    return { available: true, slug: requestedSlug };
+  }
+
+  async createInvitation(userId: string, data: any) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { userId }
+    });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    let slug = data.slug;
+    if (!slug) throw new BadRequestException('Slug is required');
+    
+    slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const checkSlug = await this.prisma.invitation.findUnique({ where: { slug } });
+    if (checkSlug) {
+      throw new BadRequestException('SLUG_TAKEN');
+    }
+
+    // 7-day trial
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+    const payload = {
+      tenantId: tenant.id,
+      slug,
+      themeId: data.themeId || 'theme-classic',
+      animation: 'none',
+      title: data.title || `Undangan ${slug}`,
+      groom: {},
+      bride: {},
+      quote: {},
+      events: {},
+      banks: [],
+      gallery: [],
+      musicUrl: '',
+      backgroundUrl: '',
+      qrisImage: '',
+      design: {},
+      isActive: true,
+      isPremium: false,
+      activeUntil: trialEndDate,
+      premiumPackage: 'FREE_TRIAL'
+    };
+
+    const invitation = await this.prisma.invitation.create({
+      data: payload
     });
 
     return invitation;
   }
 
-  async saveInvitation(userId: string, data: any) {
+  async updateInvitation(userId: string, id: string, data: any) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { userId }
     });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
     const existing = await this.prisma.invitation.findFirst({
-      where: { tenantId: tenant.id }
+      where: { id, tenantId: tenant.id }
     });
+    if (!existing) throw new NotFoundException('Invitation not found');
 
-    let slug = existing?.slug;
-    
-    // Allow custom slug from frontend
+    let slug = existing.slug;
     if (data.slug && data.slug.trim() !== '') {
       const requestedSlug = data.slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
-      // Check if the requested slug is taken by ANOTHER invitation
       const checkSlug = await this.prisma.invitation.findUnique({ where: { slug: requestedSlug } });
-      if (checkSlug && checkSlug.id !== existing?.id) {
-        throw new Error('SLUG_TAKEN');
+      if (checkSlug && checkSlug.id !== existing.id) {
+        throw new BadRequestException('SLUG_TAKEN');
       }
       slug = requestedSlug;
     }
 
-    if (!slug) {
-      // Generate slug based on groom and bride nicknames
-      const groomName = data.groom?.nickname || 'romeo';
-      const brideName = data.bride?.nickname || 'juliet';
-      slug = `${groomName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${brideName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-      
-      // Ensure uniqueness
-      let checkSlug = await this.prisma.invitation.findUnique({ where: { slug } });
-      if (checkSlug && checkSlug.id !== existing?.id) {
-        slug = `${slug}-${Math.floor(Math.random() * 10000)}`;
-      }
-    }
-
-    const payload = {
-      tenantId: tenant.id,
+    const payload: any = {
       slug,
-      themeId: data.themeId || 'theme-classic',
-      animation: data.animation || 'none',
-      title: data.title || `Pernikahan ${data.groom?.nickname || 'Romeo'} & ${data.bride?.nickname || 'Juliet'}`,
-      groom: data.groom || {},
-      bride: data.bride || {},
-      quote: data.quote || {},
-      events: data.events || {},
-      banks: data.banks || [],
-      gallery: data.gallery || [],
-      musicUrl: data.musicUrl || '',
-      backgroundUrl: data.backgroundUrl || '',
-      qrisImage: data.qrisImage || '',
-      design: data.design || {},
-      isActive: true
+      themeId: data.themeId ?? existing.themeId,
+      animation: data.animation ?? existing.animation,
+      title: data.title ?? existing.title,
+      groom: data.groom ?? existing.groom,
+      bride: data.bride ?? existing.bride,
+      quote: data.quote ?? existing.quote,
+      events: data.events ?? existing.events,
+      banks: data.banks ?? existing.banks,
+      gallery: data.gallery ?? existing.gallery,
+      musicUrl: data.musicUrl ?? existing.musicUrl,
+      backgroundUrl: data.backgroundUrl ?? existing.backgroundUrl,
+      qrisImage: data.qrisImage ?? existing.qrisImage,
+      design: data.design ?? existing.design,
+      customDomain: data.customDomain ?? existing.customDomain,
+      seoTitle: data.seoTitle ?? existing.seoTitle,
+      seoDescription: data.seoDescription ?? existing.seoDescription,
+      seoImage: data.seoImage ?? existing.seoImage,
     };
 
-    let invitation;
-    if (existing) {
-      invitation = await this.prisma.invitation.update({
-        where: { id: existing.id },
-        data: payload
-      });
-    } else {
-      invitation = await this.prisma.invitation.create({
-        data: payload
-      });
-    }
+    const invitation = await this.prisma.invitation.update({
+      where: { id: existing.id },
+      data: payload
+    });
 
     // Handle guests sync (simple replace for now)
     if (data.guests && Array.isArray(data.guests)) {

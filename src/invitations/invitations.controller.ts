@@ -8,14 +8,32 @@ export class InvitationsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('mine')
-  async getMyInvitation(@Request() req: any) {
-    return this.invitationsService.getMyInvitation(req.user.id);
+  async getInvitations(@Request() req: any) {
+    return this.invitationsService.getInvitations(req.user.id);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('check-slug')
+  async checkSlug(@Body('slug') slug: string) {
+    return this.invitationsService.checkSlug(slug);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Post()
-  async saveInvitation(@Request() req: any, @Body() data: any) {
-    return this.invitationsService.saveInvitation(req.user.id, data);
+  async createInvitation(@Request() req: any, @Body() data: any) {
+    return this.invitationsService.createInvitation(req.user.id, data);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get(':id')
+  async getInvitationById(@Request() req: any, @Param('id') id: string) {
+    return this.invitationsService.getInvitationById(req.user.id, id);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id')
+  async updateInvitation(@Request() req: any, @Param('id') id: string, @Body() data: any) {
+    return this.invitationsService.updateInvitation(req.user.id, id, data);
   }
 
   @Get('presets/music')

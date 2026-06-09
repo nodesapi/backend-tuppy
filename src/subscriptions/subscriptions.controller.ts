@@ -20,8 +20,8 @@ export class SubscriptionsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('checkout')
-  createCheckout(@Request() req: any, @Body() body: { plan: string, channelId: number, type?: 'COMMERCE' | 'EVENT', invitationId?: string }) {
-    return this.subscriptionsService.createCheckout(req.user.id, body.plan, body.channelId, body.type || 'COMMERCE', body.invitationId);
+  createCheckout(@Request() req: any, @Body() body: { plan: string, channelId: number, type?: 'COMMERCE' | 'EVENT' | 'TOPUP', invitationId?: string, topupAmount?: number }) {
+    return this.subscriptionsService.createCheckout(req.user.id, body.plan, body.channelId, body.type || 'COMMERCE', body.invitationId, body.topupAmount);
   }
 
   @UseGuards(AuthGuard('jwt'))

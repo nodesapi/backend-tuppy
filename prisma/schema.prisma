@@ -410,6 +410,12 @@ model Invitation {
   // Custom Design (Fonts & Colors)
   design        Json?
   
+  // Custom Domain & SEO
+  customDomain   String?  @unique // e.g. "nikahan-andi-sari.com"
+  seoTitle       String?
+  seoDescription String?
+  seoImage       String?
+  
   // Status Aktif & Langganan (Sesuai Paket)
   isActive       Boolean   @default(true) // Jika false, undangan disuspend/expired
   isPremium      Boolean   @default(false)
