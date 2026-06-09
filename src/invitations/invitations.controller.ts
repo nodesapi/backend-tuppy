@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Param, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { InvitationsService } from './invitations.service';
 
@@ -41,6 +41,12 @@ export class InvitationsController {
   @Get('slug/:slug/rsvp')
   async getRsvps(@Param('slug') slug: string) {
     return this.invitationsService.getRsvps(slug);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/upgrade-wallet')
+  async upgradeWithWallet(@Request() req: any, @Param('id') id: string, @Body('plan') plan: string) {
+    return this.invitationsService.upgradeWithWallet(req.user.id, id, plan);
   }
 }
 

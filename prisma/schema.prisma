@@ -193,7 +193,11 @@ model Transaction {
 model Subscription {
   id                 String    @id @default(uuid())
   tenantId           String
-  plan               String // "MONTHLY" | "YEARLY"
+  
+  type               String    @default("COMMERCE") // "COMMERCE" | "EVENT"
+  invitationId       String?   // Jika type="EVENT", simpan ID undangan
+  
+  plan               String // "MONTHLY" | "YEARLY" | "EVENT_1_MONTH" | "EVENT_3_MONTHS" | "EVENT_6_MONTHS" | "EVENT_12_MONTHS"
   amount             Float
   status             String // "PENDING", "PAID", "FAILED"
   invoiceUrl         String?
@@ -396,6 +400,7 @@ model Invitation {
   events      Json?
   banks       Json?
   gallery     Json?
+  quote       Json?
   
   // Custom Media
   musicUrl      String?
@@ -405,7 +410,12 @@ model Invitation {
   // Custom Design (Fonts & Colors)
   design        Json?
   
-  isActive    Boolean  @default(true)
+  // Status Aktif & Langganan (Sesuai Paket)
+  isActive       Boolean   @default(true) // Jika false, undangan disuspend/expired
+  isPremium      Boolean   @default(false)
+  activeUntil    DateTime? // Kapan masa aktif/paket berakhir
+  premiumPackage String?   // "FREE_1_MONTH" | "3_MONTHS" | "6_MONTHS" | "12_MONTHS"
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

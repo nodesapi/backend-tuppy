@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -63,6 +63,7 @@ export class InvitationsService {
       title: data.title || `Pernikahan ${data.groom?.nickname || 'Romeo'} & ${data.bride?.nickname || 'Juliet'}`,
       groom: data.groom || {},
       bride: data.bride || {},
+      quote: data.quote || {},
       events: data.events || {},
       banks: data.banks || [],
       gallery: data.gallery || [],
@@ -167,6 +168,82 @@ export class InvitationsService {
         createdAt: 'desc'
       }
     });
+  }
+
+  async upgradeWithWallet(userId: string, id: string, plan: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const invitation = await this.prisma.invitation.findFirst({
+      where: { id, tenantId: tenant.id }
+    });
+    if (!invitation) throw new NotFoundException('Invitation not found');
+
+    // Dynamic Pricing from SystemConfig
+    const configs = await this.prisma.systemConfig.findMany({
+      where: { key: { in: ['EVENT_PRICING_3M_WALLET', 'EVENT_PRICING_6M_WALLET', 'EVENT_PRICING_12M_WALLET'] } }
+    });
+    const pricing = {
+      'EVENT_3_MONTHS': 35000,
+      'EVENT_6_MONTHS': 70000,
+      'EVENT_12_MONTHS': 100000,
+    };
+    for (const c of configs) {
+      if (c.key === 'EVENT_PRICING_3M_WALLET') pricing['EVENT_3_MONTHS'] = parseInt(c.value);
+      if (c.key === 'EVENT_PRICING_6M_WALLET') pricing['EVENT_6_MONTHS'] = parseInt(c.value);
+      if (c.key === 'EVENT_PRICING_12M_WALLET') pricing['EVENT_12_MONTHS'] = parseInt(c.value);
+    }
+
+    let amount = 0;
+    let additionalMonths = 0;
+
+    if (plan === 'EVENT_3_MONTHS') { amount = pricing['EVENT_3_MONTHS']; additionalMonths = 3; }
+    else if (plan === 'EVENT_6_MONTHS') { amount = pricing['EVENT_6_MONTHS']; additionalMonths = 6; }
+    else if (plan === 'EVENT_12_MONTHS') { amount = pricing['EVENT_12_MONTHS']; additionalMonths = 12; }
+    else throw new BadRequestException('Invalid EVENT plan');
+
+    if (tenant.walletBalance < amount) {
+      throw new BadRequestException('Saldo Wallet tidak mencukupi untuk pembayaran ini');
+    }
+
+    // Execute with transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. Potong Saldo
+      await tx.tenant.update({
+        where: { id: tenant.id },
+        data: { walletBalance: { decrement: amount } }
+      });
+
+      // 2. Catat Mutasi
+      await tx.walletTransaction.create({
+        data: {
+          tenantId: tenant.id,
+          type: 'DEBIT',
+          amount: amount,
+          description: `Bayar Langganan Undangan (${plan.replace('EVENT_', '').replace('_', ' ')})`,
+          status: 'SUCCESS'
+        }
+      });
+
+      // 3. Tambah Masa Aktif
+      const currentExpiry = invitation.activeUntil && invitation.activeUntil > new Date() ? invitation.activeUntil : new Date();
+      const newExpiry = new Date(currentExpiry);
+      newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
+
+      const updatedInv = await tx.invitation.update({
+        where: { id: invitation.id },
+        data: {
+          isPremium: true,
+          activeUntil: newExpiry,
+          premiumPackage: plan,
+          isActive: true
+        }
+      });
+
+      return updatedInv;
+    });
+
+    return { success: true, message: 'Upgrade berhasil menggunakan saldo wallet', invitation: result };
   }
 }
 

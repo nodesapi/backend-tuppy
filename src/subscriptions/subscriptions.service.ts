@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { PayhookService } from './payhook.service';
@@ -48,19 +48,56 @@ export class SubscriptionsService {
               where: { id: subscription.id },
               data: { status: 'PAID', paidAt: new Date(), paymentInstruction }
             });
-            const t = await tx.tenant.findUnique({ where: { id: subscription.tenantId } });
-            if (t) {
-              const currentExpiry = t.premiumUntil && t.premiumUntil > new Date() ? t.premiumUntil : new Date();
-              const additionalMonths = subscription.plan === 'YEARLY' ? 12 : 1;
-              const newExpiry = new Date(currentExpiry);
-              newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
-              return tx.tenant.update({
-                where: { id: t.id },
-                data: { isPremium: true, premiumUntil: newExpiry },
+            if (subscription.type === 'EVENT' && subscription.invitationId) {
+              const inv = await tx.invitation.findUnique({ where: { id: subscription.invitationId } });
+              if (inv) {
+                const currentExpiry = inv.activeUntil && inv.activeUntil > new Date() ? inv.activeUntil : new Date();
+                let additionalMonths = 3;
+                if (subscription.plan === 'EVENT_6_MONTHS') additionalMonths = 6;
+                else if (subscription.plan === 'EVENT_12_MONTHS') additionalMonths = 12;
+                
+                const newExpiry = new Date(currentExpiry);
+                newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
+                
+                await tx.invitation.update({
+                  where: { id: inv.id },
+                  data: { isPremium: true, activeUntil: newExpiry, premiumPackage: subscription.plan, isActive: true }
+                });
+              }
+              const t = await tx.tenant.findUnique({ where: { id: subscription.tenantId }, include: { user: true } });
+              return t;
+            } else if (subscription.type === 'TOPUP') {
+              const updatedTenant = await tx.tenant.update({
+                where: { id: subscription.tenantId },
+                data: { walletBalance: { increment: subscription.amount } },
                 include: { user: true }
               });
+              await tx.walletTransaction.create({
+                data: {
+                  tenantId: subscription.tenantId,
+                  type: 'CREDIT',
+                  amount: subscription.amount,
+                  description: `Top Up Saldo Tupply`,
+                  referenceId: subscription.id,
+                  status: 'SUCCESS'
+                }
+              });
+              return updatedTenant;
+            } else {
+              const t = await tx.tenant.findUnique({ where: { id: subscription.tenantId } });
+              if (t) {
+                const currentExpiry = t.premiumUntil && t.premiumUntil > new Date() ? t.premiumUntil : new Date();
+                const additionalMonths = subscription.plan === 'YEARLY' ? 12 : 1;
+                const newExpiry = new Date(currentExpiry);
+                newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
+                return tx.tenant.update({
+                  where: { id: t.id },
+                  data: { isPremium: true, premiumUntil: newExpiry },
+                  include: { user: true }
+                });
+              }
+              return null;
             }
-            return null;
           });
 
           // Trigger Payhook Provisioning if not already provisioned
@@ -123,17 +160,52 @@ export class SubscriptionsService {
     };
   }
 
-  async createCheckout(userId: string, plan: 'MONTHLY' | 'YEARLY', channelId: number) {
+  async createCheckout(userId: string, plan: string, channelId: number, type: 'COMMERCE' | 'EVENT' | 'TOPUP' = 'COMMERCE', invitationId?: string, topupAmount?: number) {
     const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
-    const amount = plan === 'MONTHLY' ? 150000 : 1500000;
+    let amount = 0;
+    let description = '';
+
+    if (type === 'COMMERCE') {
+      amount = plan === 'MONTHLY' ? 150000 : 1500000;
+      description = `Upgrade to ${plan} Premium Plan for Tupply Store`;
+    } else if (type === 'TOPUP') {
+      if (!topupAmount || topupAmount < 10000) throw new BadRequestException('Minimal top up adalah Rp 10.000');
+      amount = topupAmount;
+      description = `Top Up Saldo Tupply`;
+    } else {
+      // Dynamic Pricing from SystemConfig
+      const configs = await this.prisma.systemConfig.findMany({
+        where: { key: { in: ['EVENT_PRICING_3M', 'EVENT_PRICING_6M', 'EVENT_PRICING_12M'] } }
+      });
+      const pricing = {
+        'EVENT_3_MONTHS': 50000,
+        'EVENT_6_MONTHS': 100000,
+        'EVENT_12_MONTHS': 150000,
+      };
+      for (const c of configs) {
+        if (c.key === 'EVENT_PRICING_3M') pricing['EVENT_3_MONTHS'] = parseInt(c.value);
+        if (c.key === 'EVENT_PRICING_6M') pricing['EVENT_6_MONTHS'] = parseInt(c.value);
+        if (c.key === 'EVENT_PRICING_12M') pricing['EVENT_12_MONTHS'] = parseInt(c.value);
+      }
+
+      if (plan === 'EVENT_3_MONTHS') amount = pricing['EVENT_3_MONTHS'];
+      else if (plan === 'EVENT_6_MONTHS') amount = pricing['EVENT_6_MONTHS'];
+      else if (plan === 'EVENT_12_MONTHS') amount = pricing['EVENT_12_MONTHS'];
+      else throw new BadRequestException('Invalid EVENT plan');
+      
+      description = `Upgrade Invitation Active Period (${plan.replace('EVENT_', '').replace('_', ' ')})`;
+    }
+
     const referenceId = `TUPPLY-${Date.now()}`;
 
     // Buat tagihan pending di database
     const subscription = await this.prisma.subscription.create({
       data: {
         tenantId: tenant.id,
+        type,
+        invitationId,
         plan,
         amount,
         status: 'PENDING',
@@ -146,7 +218,7 @@ export class SubscriptionsService {
       amount,
       customer_name: tenant.displayName || tenant.username, // Use displayName or username
       external_id: referenceId,
-      description: `Upgrade to ${plan} Premium Plan for Tupply`,
+      description,
       payment_channel_id: channelId,
     });
 
@@ -240,28 +312,64 @@ export class SubscriptionsService {
       });
 
       // Kalkulasi penambahan masa aktif premium
-      const tenant = await tx.tenant.findUnique({ where: { id: subscription.tenantId } });
+      const tenant = await tx.tenant.findUnique({ where: { id: subscription.tenantId }, include: { user: true } });
       if (!tenant) throw new Error('Tenant not found');
 
-      const currentExpiry = tenant.premiumUntil && tenant.premiumUntil > new Date() 
-        ? tenant.premiumUntil 
-        : new Date();
-      
-      const additionalMonths = subscription.plan === 'YEARLY' ? 12 : 1;
-      const newExpiry = new Date(currentExpiry);
-      newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
+      if (subscription.type === 'EVENT' && subscription.invitationId) {
+        const inv = await tx.invitation.findUnique({ where: { id: subscription.invitationId } });
+        if (inv) {
+          const currentExpiry = inv.activeUntil && inv.activeUntil > new Date() ? inv.activeUntil : new Date();
+          let additionalMonths = 3;
+          if (subscription.plan === 'EVENT_6_MONTHS') additionalMonths = 6;
+          else if (subscription.plan === 'EVENT_12_MONTHS') additionalMonths = 12;
+          
+          const newExpiry = new Date(currentExpiry);
+          newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
+          
+          await tx.invitation.update({
+            where: { id: inv.id },
+            data: { isPremium: true, activeUntil: newExpiry, premiumPackage: subscription.plan, isActive: true }
+          });
+        }
+        return { success: true, message: 'Event Premium activated', tenant };
+      } else if (subscription.type === 'TOPUP') {
+        const updatedTenant = await tx.tenant.update({
+          where: { id: subscription.tenantId },
+          data: { walletBalance: { increment: subscription.amount } },
+          include: { user: true }
+        });
+        await tx.walletTransaction.create({
+          data: {
+            tenantId: subscription.tenantId,
+            type: 'CREDIT',
+            amount: subscription.amount,
+            description: `Top Up Saldo Tupply`,
+            referenceId: subscription.id,
+            status: 'SUCCESS'
+          }
+        });
+        return { success: true, message: 'Top Up successful', tenant: updatedTenant };
+      } else {
+        const currentExpiry = tenant.premiumUntil && tenant.premiumUntil > new Date() 
+          ? tenant.premiumUntil 
+          : new Date();
+        
+        const additionalMonths = subscription.plan === 'YEARLY' ? 12 : 1;
+        const newExpiry = new Date(currentExpiry);
+        newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
 
-      // Aktifkan premium di Tenant
-      const updatedTenant = await tx.tenant.update({
-        where: { id: subscription.tenantId },
-        data: {
-          isPremium: true,
-          premiumUntil: newExpiry
-        },
-        include: { user: true }
-      });
+        // Aktifkan premium di Tenant
+        const updatedTenant = await tx.tenant.update({
+          where: { id: subscription.tenantId },
+          data: {
+            isPremium: true,
+            premiumUntil: newExpiry
+          },
+          include: { user: true }
+        });
 
-      return { success: true, message: 'Premium activated', tenant: updatedTenant };
+        return { success: true, message: 'Premium activated', tenant: updatedTenant };
+      }
     });
 
     // Jalankan integrasi eksternal setelah transaksi DB selesai dengan sukses
