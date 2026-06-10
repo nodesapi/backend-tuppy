@@ -13,6 +13,7 @@ import { ChatService } from './chat.service';
 import { Injectable } from '@nestjs/common';
 
 @WebSocketGateway({
+  path: '/api/socket.io',
   cors: {
     origin: '*',
   },
