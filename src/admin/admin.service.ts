@@ -305,6 +305,7 @@ export class AdminService {
         email: true,
         role: true,
         displayName: true,
+        avatarUrl: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -337,6 +338,7 @@ export class AdminService {
         email: true,
         role: true,
         displayName: true,
+        avatarUrl: true,
         createdAt: true,
       },
     });
@@ -371,6 +373,7 @@ export class AdminService {
         email: true,
         role: true,
         displayName: true,
+        avatarUrl: true,
         createdAt: true,
       },
     });
