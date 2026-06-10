@@ -4,6 +4,7 @@ import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { EmailService } from '../email/email.service';
 import { PayhookService } from '../subscriptions/payhook.service';
 import { ShippingService } from '../shipping/shipping.service';
+import { ChatService } from '../chat/chat.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './dto/create-order.dto';
 import * as jwt from 'jsonwebtoken';
 
@@ -16,7 +17,8 @@ export class OrdersService {
     private readonly whatsappService: WhatsappService,
     private readonly emailService: EmailService,
     private readonly payhookService: PayhookService,
-    private readonly shippingService: ShippingService
+    private readonly shippingService: ShippingService,
+    private readonly chatService: ChatService,
   ) {}
 
   async checkout(dto: CreateOrderDto) {
@@ -207,6 +209,19 @@ export class OrdersService {
       where: { id: result.id },
       include: { items: true },
     });
+
+    try {
+      await this.chatService.linkOrderToConversation({
+        tenantId: tenant.id,
+        orderId: result.id,
+        orderNumber,
+        customerName,
+        customerPhone,
+        customerEmail,
+      });
+    } catch (error) {
+      this.logger.error(`Gagal mengaitkan order ke chat: ${(error as any)?.message || error}`);
+    }
 
     // Generate link WA konfirmasi ke penjual (hanya untuk dicopy jika perlu)
     const waText = this.generateWaText(fullOrder!, tenant.waPhoneNumber);

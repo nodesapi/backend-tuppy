@@ -31,6 +31,7 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { ShippingModule } from './shipping/shipping.module';
 import { ScraperModule } from './scraper/scraper.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { InvitationsModule } from './invitations/invitations.module';
     ShippingModule,
     ScraperModule,
     InvitationsModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
