@@ -423,7 +423,7 @@ export class InvitationsService {
     const lead = await this.prisma.lead.create({
       data: {
         tenantId: invitation.tenantId,
-        blockId: 'rsvp-form',
+        blockId: `invitation-${invitation.id}`,
         source: 'RSVP',
         name: payload.name || 'Tamu',
         notes: payload.wish || '',
@@ -443,6 +443,7 @@ export class InvitationsService {
     return this.prisma.lead.findMany({
       where: {
         tenantId: invitation.tenantId,
+        blockId: `invitation-${invitation.id}`,
         source: 'RSVP'
       },
       orderBy: {
