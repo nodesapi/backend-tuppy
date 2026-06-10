@@ -10,7 +10,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
@@ -35,6 +35,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(
     private jwtService: JwtService,
+    @Inject(forwardRef(() => ChatService))
     private chatService: ChatService,
   ) {}
 
