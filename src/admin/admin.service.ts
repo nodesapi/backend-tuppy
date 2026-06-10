@@ -13,6 +13,22 @@ export class AdminService {
     }
   }
 
+  // Memastikan bahwa user adalah ADMIN atau SUPPORT
+  private async ensureSupportOrAdmin(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !['ADMIN', 'SUPPORT'].includes(user.role)) {
+      throw new ForbiddenException('Akses ditolak: Hanya untuk Tim Support / Admin.');
+    }
+  }
+
+  // Memastikan bahwa user adalah ADMIN atau FINANCE
+  private async ensureFinanceOrAdmin(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !['ADMIN', 'FINANCE'].includes(user.role)) {
+      throw new ForbiddenException('Akses ditolak: Hanya untuk Tim Finance / Admin.');
+    }
+  }
+
   async getDashboardStats(userId: string) {
     await this.ensureAdmin(userId);
 
@@ -85,14 +101,14 @@ export class AdminService {
   }
 
   async getAllTickets(userId: string) {
-    await this.ensureAdmin(userId);
+    await this.ensureSupportOrAdmin(userId);
     return this.prisma.ticket.findMany({
       orderBy: { createdAt: 'desc' }
     });
   }
 
   async updateTicketStatus(userId: string, ticketId: string, status: string) {
-    await this.ensureAdmin(userId);
+    await this.ensureSupportOrAdmin(userId);
     return this.prisma.ticket.update({
       where: { id: ticketId },
       data: { status }
@@ -120,7 +136,7 @@ export class AdminService {
   }
 
   async getWithdrawalRequests(userId: string) {
-    await this.ensureAdmin(userId);
+    await this.ensureFinanceOrAdmin(userId);
     return this.prisma.withdrawalRequest.findMany({
       include: {
         tenant: { select: { displayName: true, username: true, waPhoneNumber: true } }
@@ -130,7 +146,7 @@ export class AdminService {
   }
 
   async processWithdrawalRequest(userId: string, requestId: string, proofUrl: string) {
-    await this.ensureAdmin(userId);
+    await this.ensureFinanceOrAdmin(userId);
     
     const request = await this.prisma.withdrawalRequest.findUnique({
       where: { id: requestId }

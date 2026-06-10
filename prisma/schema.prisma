@@ -14,6 +14,8 @@ enum Role {
   ADMIN
   TENANT // Penjual/Kreator
   BUYER // Pembeli
+  SUPPORT // Customer Service / Platform Support
+  FINANCE // Finance
 }
 
 // Tabel Induk Pengguna (Login Credential)
@@ -24,6 +26,8 @@ model User {
   twoFactorSecret    String?
   isTwoFactorEnabled Boolean  @default(false)
   role               Role     @default(BUYER)
+  displayName        String?  // Untuk Support / Admin profile
+  avatarUrl          String?  // Untuk Support / Admin profile
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -290,7 +294,7 @@ model Order {
 
 model ChatConversation {
   id                String        @id @default(uuid())
-  tenantId          String
+  tenantId          String?
   orderId           String?
   customerName      String
   customerPhone     String
@@ -303,7 +307,7 @@ model ChatConversation {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant            Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   order             Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
   messages          ChatMessage[]
 
