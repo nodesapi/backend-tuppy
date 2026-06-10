@@ -305,7 +305,7 @@ export class InvitationsService {
       backgroundUrl: data.backgroundUrl ?? existing.backgroundUrl,
       qrisImage: data.qrisImage ?? existing.qrisImage,
       design: data.design ?? existing.design,
-      customDomain: data.customDomain ?? existing.customDomain,
+      customDomain: (data.customDomain ?? existing.customDomain) === '' ? null : (data.customDomain ?? existing.customDomain),
       seoTitle: data.seoTitle ?? existing.seoTitle,
       seoDescription: data.seoDescription ?? existing.seoDescription,
       seoImage: data.seoImage ?? existing.seoImage,
