@@ -14,9 +14,27 @@ export class LeadsService {
     if (source) where.source = source;
     if (status) where.status = status;
 
-    return this.prisma.lead.findMany({
+    const leads = await this.prisma.lead.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+    });
+
+    const invitations = await this.prisma.invitation.findMany({
+      where: { tenantId: tenant.id },
+      select: { id: true, slug: true, title: true }
+    });
+    
+    const invMap = new Map();
+    invitations.forEach(inv => invMap.set(`invitation-${inv.id}`, inv));
+    
+    return leads.map(lead => {
+      if (lead.blockId && lead.blockId.startsWith('invitation-')) {
+        const inv = invMap.get(lead.blockId);
+        if (inv) {
+          return { ...lead, invitationSlug: inv.slug, invitationTitle: inv.title };
+        }
+      }
+      return lead;
     });
   }
 
