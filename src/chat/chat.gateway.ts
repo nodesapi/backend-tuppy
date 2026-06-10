@@ -75,6 +75,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         isOnline: this.onlinePlatformStaff.size > 0,
       });
     } catch (e) {
+      console.error('Socket authentication error:', e.message);
       // Allow unauthenticated connection for guests, but they won't have roles
       const guestToken = client.handshake.query?.guestToken as string;
       if (guestToken) {
