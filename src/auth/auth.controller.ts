@@ -71,7 +71,7 @@ export class AuthController {
     @Request() req: any,
     @Body('code') code: string,
   ) {
-    await this.authService.turnOnTwoFactorAuthentication(req.user.sub, code);
+    await this.authService.turnOnTwoFactorAuthentication(req.user.id, code);
     return { success: true, message: '2FA berhasil diaktifkan' };
   }
 
@@ -83,7 +83,7 @@ export class AuthController {
     @Request() req: any,
     @Body('code') code: string,
   ) {
-    await this.authService.turnOffTwoFactorAuthentication(req.user.sub, code);
+    await this.authService.turnOffTwoFactorAuthentication(req.user.id, code);
     return { success: true, message: '2FA berhasil dinonaktifkan' };
   }
 
@@ -107,7 +107,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Lihat profil user yang sedang login (Protected)' })
   async getProfile(@Request() req: any) {
-    const user = await this.usersService.findById(req.user.sub);
+    const user = await this.usersService.findById(req.user.id);
     if (user) {
       const { password, ...result } = user;
       return result;
@@ -123,7 +123,7 @@ export class AuthController {
     @Request() req: any,
     @Body() body: { displayName?: string; avatarUrl?: string },
   ) {
-    const updated = await this.usersService.update(req.user.sub, {
+    const updated = await this.usersService.update(req.user.id, {
       displayName: body.displayName,
       avatarUrl: body.avatarUrl,
     });
