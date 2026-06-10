@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { ShippingService } from './shipping.service';
 
 @Controller('shipping')
@@ -26,9 +34,18 @@ export class ShippingController {
     @Body('courier') courier: string,
   ) {
     if (!origin || !destination || !weight || !courier) {
-      return { success: false, message: 'Missing required fields: origin, destination, weight, courier' };
+      return {
+        success: false,
+        message:
+          'Missing required fields: origin, destination, weight, courier',
+      };
     }
-    const data = await this.shippingService.getCost(origin, destination, weight, courier);
+    const data = await this.shippingService.getCost(
+      origin,
+      destination,
+      weight,
+      courier,
+    );
     return { success: true, data };
   }
 
@@ -39,7 +56,10 @@ export class ShippingController {
     @Body('courier') courier: string,
   ) {
     if (!waybill || !courier) {
-      return { success: false, message: 'Missing required fields: waybill, courier' };
+      return {
+        success: false,
+        message: 'Missing required fields: waybill, courier',
+      };
     }
     const data = await this.shippingService.trackWaybill(waybill, courier);
     return { success: true, data };

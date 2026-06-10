@@ -1,4 +1,9 @@
-import { Injectable, Logger, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import * as crypto from 'crypto';
@@ -9,10 +14,14 @@ export class WebhookService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly whatsappService: WhatsappService
+    private readonly whatsappService: WhatsappService,
   ) {}
 
-  async processPayhookWebhook(signature: string, rawPayload: string, body: any) {
+  async processPayhookWebhook(
+    signature: string,
+    rawPayload: string,
+    body: any,
+  ) {
     this.logger.log(`Received Payhook Webhook: ${JSON.stringify(body)}`);
 
     if (body.event !== 'payment.status.updated' || !body.invoice) {
@@ -30,10 +39,10 @@ export class WebhookService {
     const order = await this.prisma.order.findFirst({
       where: {
         paymentLink: {
-          contains: invoiceNumber
-        }
+          contains: invoiceNumber,
+        },
       },
-      include: { tenant: true }
+      include: { tenant: true },
     });
 
     if (!order) {
@@ -45,11 +54,16 @@ export class WebhookService {
 
     let secretToUse = tenant.payhookWebhookSecret;
     if (order.paymentGateway === 'PAYHOOK_GLOBAL') {
-      secretToUse = process.env.PAYHOOK_WEBHOOK_SECRET || process.env.TUPPLY_INTERNAL_SECRET || 'tupply-dev-secret-key-12345';
+      secretToUse =
+        process.env.PAYHOOK_WEBHOOK_SECRET ||
+        process.env.TUPPLY_INTERNAL_SECRET ||
+        'tupply-dev-secret-key-12345';
     }
 
     if (!secretToUse) {
-      this.logger.warn(`Webhook secret is missing for order ${invoiceNumber}. Proceeding without signature check.`);
+      this.logger.warn(
+        `Webhook secret is missing for order ${invoiceNumber}. Proceeding without signature check.`,
+      );
     } else {
       // 2. Verify HMAC Signature
       const expectedSignature = crypto
@@ -58,7 +72,9 @@ export class WebhookService {
         .digest('hex');
 
       if (signature !== expectedSignature) {
-        this.logger.warn(`Invalid webhook signature for order ${invoiceNumber}. Expected: ${expectedSignature}, Got: ${signature}. Bypassing strict check temporarily.`);
+        this.logger.warn(
+          `Invalid webhook signature for order ${invoiceNumber}. Expected: ${expectedSignature}, Got: ${signature}. Bypassing strict check temporarily.`,
+        );
       }
     }
 
@@ -70,14 +86,14 @@ export class WebhookService {
           data: {
             status: 'CONFIRMED',
             paymentMethod: body.invoice?.payment_channel || 'PAYHOOK',
-          }
+          },
         });
 
         // Jika menggunakan Global Payhook, tambahkan saldo ke Wallet Penjual (Net Amount utuh, kode unik masuk ke Global)
         if (order.paymentGateway === 'PAYHOOK_GLOBAL') {
           await tx.tenant.update({
             where: { id: tenant.id },
-            data: { walletBalance: { increment: order.netAmount } }
+            data: { walletBalance: { increment: order.netAmount } },
           });
 
           await tx.walletTransaction.create({
@@ -87,8 +103,8 @@ export class WebhookService {
               amount: order.netAmount,
               description: `Penjualan dari Pesanan ${order.orderNumber} (Escrow)`,
               referenceId: order.id,
-              status: 'SUCCESS'
-            }
+              status: 'SUCCESS',
+            },
           });
         }
       });
@@ -99,7 +115,12 @@ export class WebhookService {
       if (tenant.notifMethod === 'WHATSAPP' || tenant.notifMethod === 'BOTH') {
         const msg = `*[TUPPLY PAYMENT]*\nPembayaran untuk pesanan *${order.orderNumber}* telah BERHASIL diterima sejumlah Rp ${order.grandTotal.toLocaleString('id-ID')}.\n\nSilakan proses pesanan ini.`;
         if (tenant.waPhoneNumber) {
-          this.whatsappService.sendMessage(tenant.id, tenant.waPhoneNumber, msg, order.id);
+          this.whatsappService.sendMessage(
+            tenant.id,
+            tenant.waPhoneNumber,
+            msg,
+            order.id,
+          );
         }
       }
     } else {

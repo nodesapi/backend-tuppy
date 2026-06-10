@@ -8,7 +8,7 @@ export class PagesService {
   async getMyPage(userId: string, slug: string) {
     // Cari tenant milik user
     const tenant = await this.prisma.tenant.findUnique({
-      where: { userId }
+      where: { userId },
     });
 
     if (!tenant) {
@@ -19,14 +19,14 @@ export class PagesService {
         slug,
         title: 'Dummy Page (Admin)',
         themeConfig: {},
-        blocks: []
+        blocks: [],
       };
     }
 
     // Coba cari halaman dengan slug tersebut
     let page = await this.prisma.page.findFirst({
       where: { tenantId: tenant.id, slug },
-      include: { blocks: { orderBy: { order: 'asc' } } }
+      include: { blocks: { orderBy: { order: 'asc' } } },
     });
 
     // Jika belum ada (misalnya slug 'index'), buat otomatis (upsert behavior)
@@ -38,7 +38,7 @@ export class PagesService {
           title: slug === 'index' ? 'Halaman Utama' : slug,
           themeConfig: {}, // Default empty config
         },
-        include: { blocks: { orderBy: { order: 'asc' } } }
+        include: { blocks: { orderBy: { order: 'asc' } } },
       });
     }
 
@@ -47,25 +47,25 @@ export class PagesService {
 
   async getPublicPage(slug: string) {
     const tenant = await this.prisma.tenant.findUnique({
-      where: { username: slug }
+      where: { username: slug },
     });
-    
+
     if (!tenant) throw new NotFoundException('Store not found');
 
     // Jika akun ditangguhkan, kembalikan flag suspended
     if (tenant.isSuspended) {
-      return { 
-        suspended: true, 
-        reason: tenant.suspendReason || 'Melanggar Ketentuan Layanan' 
+      return {
+        suspended: true,
+        reason: tenant.suspendReason || 'Melanggar Ketentuan Layanan',
       };
     }
 
     const page = await this.prisma.page.findFirst({
       where: { tenantId: tenant.id, slug: 'index' },
-      include: { 
+      include: {
         blocks: { orderBy: { order: 'asc' } },
-        tenant: true
-      }
+        tenant: true,
+      },
     });
 
     if (!page) throw new NotFoundException('Page not found');
@@ -75,7 +75,7 @@ export class PagesService {
 
   async updateMyPage(userId: string, slug: string, data: any) {
     const tenant = await this.prisma.tenant.findUnique({
-      where: { userId }
+      where: { userId },
     });
 
     if (!tenant) {
@@ -86,12 +86,12 @@ export class PagesService {
         slug,
         title: 'Dummy Page (Admin)',
         themeConfig: data.themeConfig || {},
-        blocks: data.blocks || []
+        blocks: data.blocks || [],
       };
     }
 
     let page = await this.prisma.page.findFirst({
-      where: { tenantId: tenant.id, slug }
+      where: { tenantId: tenant.id, slug },
     });
 
     if (!page) {
@@ -101,8 +101,8 @@ export class PagesService {
           tenantId: tenant.id,
           slug,
           title: slug === 'index' ? 'Halaman Utama' : slug,
-          themeConfig: {}, 
-        }
+          themeConfig: {},
+        },
       });
     }
 
@@ -112,15 +112,16 @@ export class PagesService {
       const updatedPage = await tx.page.update({
         where: { id: page.id },
         data: {
-          themeConfig: data.themeConfig !== undefined ? data.themeConfig : undefined
-        }
+          themeConfig:
+            data.themeConfig !== undefined ? data.themeConfig : undefined,
+        },
       });
 
       // 2. Jika ada data blocks, replace semuanya
       if (data.blocks && Array.isArray(data.blocks)) {
         // Find old blocks to check for deleted images
         const oldBlocks = await tx.block.findMany({
-          where: { pageId: page.id }
+          where: { pageId: page.id },
         });
 
         // Collect URLs that are being deleted
@@ -129,7 +130,12 @@ export class PagesService {
           const content = b.content as any;
           if (content && content.url && typeof content.url === 'string') {
             oldImageUrls.push(content.url);
-          } else if (content && content.images && Array.isArray(content.images) && content.images.length > 0) {
+          } else if (
+            content &&
+            content.images &&
+            Array.isArray(content.images) &&
+            content.images.length > 0
+          ) {
             oldImageUrls.push(content.images[0]);
           }
         }
@@ -139,13 +145,20 @@ export class PagesService {
         for (const b of data.blocks) {
           if (b.content && b.content.url && typeof b.content.url === 'string') {
             newImageUrls.push(b.content.url);
-          } else if (b.content && b.content.images && Array.isArray(b.content.images) && b.content.images.length > 0) {
+          } else if (
+            b.content &&
+            b.content.images &&
+            Array.isArray(b.content.images) &&
+            b.content.images.length > 0
+          ) {
             newImageUrls.push(b.content.images[0]);
           }
         }
 
         // Find URLs to delete
-        const urlsToDelete = oldImageUrls.filter(url => !newImageUrls.includes(url) && url.startsWith('/images/'));
+        const urlsToDelete = oldImageUrls.filter(
+          (url) => !newImageUrls.includes(url) && url.startsWith('/images/'),
+        );
 
         if (urlsToDelete.length > 0) {
           // Fire and forget delete requests to CDN
@@ -154,14 +167,16 @@ export class PagesService {
             fetch(`${cdnUrl}/delete`, {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url })
-            }).catch(e => console.error('Failed to delete old block image from CDN:', e));
+              body: JSON.stringify({ url }),
+            }).catch((e) =>
+              console.error('Failed to delete old block image from CDN:', e),
+            );
           }
         }
 
         // Hapus blok lama
         await tx.block.deleteMany({
-          where: { pageId: page.id }
+          where: { pageId: page.id },
         });
 
         // Insert blok baru dengan order yang sesuai
@@ -169,12 +184,12 @@ export class PagesService {
           pageId: page.id,
           type: b.type,
           order: index,
-          content: b.content || {}
+          content: b.content || {},
         }));
 
         if (blocksData.length > 0) {
           await tx.block.createMany({
-            data: blocksData
+            data: blocksData,
           });
         }
       }
@@ -182,7 +197,7 @@ export class PagesService {
       // 3. Ambil data terbaru untuk di-return
       return tx.page.findUnique({
         where: { id: page.id },
-        include: { blocks: { orderBy: { order: 'asc' } } }
+        include: { blocks: { orderBy: { order: 'asc' } } },
       });
     });
   }

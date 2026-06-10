@@ -1,5 +1,14 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
+import {
+  makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+} from '@whiskeysockets/baileys';
 import * as QRCode from 'qrcode';
 import { Boom } from '@hapi/boom';
 import * as path from 'path';
@@ -14,16 +23,21 @@ interface BotSession {
 @Injectable()
 export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WhatsappService.name);
-  
+
   // Kunci sesi: "SYSTEM" untuk bot platform, atau tenantId untuk bot penjual
   private sessions = new Map<string, BotSession>();
-  private readonly baseAuthFolder = path.join(process.cwd(), 'baileys_auth_info');
+  private readonly baseAuthFolder = path.join(
+    process.cwd(),
+    'baileys_auth_info',
+  );
 
   constructor(private prisma: PrismaService) {}
 
   async onModuleInit() {
     // Pada saat server start, kita cek apakah System Bot aktif di database
-    const sysConfig = await this.prisma.systemConfig.findUnique({ where: { key: 'WHATSAPP_SYSTEM_ENABLED' } });
+    const sysConfig = await this.prisma.systemConfig.findUnique({
+      where: { key: 'WHATSAPP_SYSTEM_ENABLED' },
+    });
     if (sysConfig?.value === 'true') {
       this.logger.log('Auto-starting SYSTEM WhatsApp bot...');
       await this.startBot('SYSTEM');
@@ -50,7 +64,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
     return {
       connected: session?.isReady || false,
       qrCodeUrl: session?.qrCodeUrl || null,
-      active: !!session
+      active: !!session,
     };
   }
 
@@ -66,7 +80,9 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
         session.sock.end(new Error('Bot stopped by user'));
       }
       this.sessions.delete(sessionId);
-      this.logger.log(`Bot session ${sessionId} stopped and cleared from memory.`);
+      this.logger.log(
+        `Bot session ${sessionId} stopped and cleared from memory.`,
+      );
     }
   }
 
@@ -118,17 +134,24 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
         try {
           currentSession.qrCodeUrl = await QRCode.toDataURL(qr);
         } catch (err) {
-          this.logger.error(`[${sessionId}] Failed to generate QR Code Data URL`, err);
+          this.logger.error(
+            `[${sessionId}] Failed to generate QR Code Data URL`,
+            err,
+          );
         }
       }
 
       if (connection === 'close') {
         currentSession.isReady = false;
         currentSession.qrCodeUrl = null;
-        
-        const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-        this.logger.log(`[${sessionId}] Connection closed, reconnecting: ${shouldReconnect}`);
-        
+
+        const shouldReconnect =
+          (lastDisconnect?.error as Boom)?.output?.statusCode !==
+          DisconnectReason.loggedOut;
+        this.logger.log(
+          `[${sessionId}] Connection closed, reconnecting: ${shouldReconnect}`,
+        );
+
         if (shouldReconnect) {
           // Reconnect logic: Hapus sesi lama dari Map, lalu start ulang
           this.sessions.delete(sessionId);
@@ -140,7 +163,9 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       } else if (connection === 'open') {
         currentSession.isReady = true;
         currentSession.qrCodeUrl = null;
-        this.logger.log(`[${sessionId}] WhatsApp connection opened successfully!`);
+        this.logger.log(
+          `[${sessionId}] WhatsApp connection opened successfully!`,
+        );
       }
     });
 
@@ -154,16 +179,23 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * @param message Isi pesan
    * @param orderId ID order jika terkait pesanan
    */
-  async sendMessage(sessionId: string, phone: string, message: string, orderId?: string) {
+  async sendMessage(
+    sessionId: string,
+    phone: string,
+    message: string,
+    orderId?: string,
+  ) {
     // Lazy Load: Jika sessionId bukan SYSTEM dan belum ada di memory, coba start
     if (!this.sessions.has(sessionId)) {
-      this.logger.log(`[LazyLoad] Starting bot for ${sessionId} to send message...`);
+      this.logger.log(
+        `[LazyLoad] Starting bot for ${sessionId} to send message...`,
+      );
       await this.startBot(sessionId);
-      
+
       // Tunggu maksimal 5 detik agar bot ready
       let retries = 5;
       while (retries > 0) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 1000));
         if (this.sessions.get(sessionId)?.isReady) break;
         retries--;
       }
@@ -171,8 +203,10 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const session = this.sessions.get(sessionId);
     if (!session || !session.isReady) {
-      this.logger.warn(`Failed to send message: Bot ${sessionId} is not connected or ready.`);
-      
+      this.logger.warn(
+        `Failed to send message: Bot ${sessionId} is not connected or ready.`,
+      );
+
       // Log kegagalan ke database
       await this.prisma.whatsappLog.create({
         data: {
@@ -182,7 +216,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
           message,
           sentBy: sessionId === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
           status: 'FAILED',
-        }
+        },
       });
       return false;
     }
@@ -202,13 +236,16 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
           message,
           sentBy: sessionId === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
           status: 'SUCCESS',
-        }
+        },
       });
 
       return true;
     } catch (err) {
-      this.logger.error(`Error sending message to ${phone} via bot ${sessionId}`, err);
-      
+      this.logger.error(
+        `Error sending message to ${phone} via bot ${sessionId}`,
+        err,
+      );
+
       // Log kegagalan
       await this.prisma.whatsappLog.create({
         data: {
@@ -218,7 +255,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
           message,
           sentBy: sessionId === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
           status: 'FAILED',
-        }
+        },
       });
       return false;
     }

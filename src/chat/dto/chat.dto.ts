@@ -1,8 +1,9 @@
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class StartConversationDto {
+  @IsOptional()
   @IsString()
-  tenantUsername: string;
+  tenantUsername?: string;
 
   @IsString()
   @MaxLength(120)

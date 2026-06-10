@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  ForbiddenException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { WhatsappService } from './whatsapp.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,9 +31,9 @@ export class WhatsappController {
 
     // Jika tenant membuka halaman ini, pastikan botnya nyala (lazy load trigger)
     if (tenant.notifMethod === 'WHATSAPP' || tenant.notifMethod === 'BOTH') {
-       this.whatsappService.startBot(tenant.id);
+      this.whatsappService.startBot(tenant.id);
     }
-    
+
     return this.whatsappService.getSessionStatus(tenant.id);
   }
 
@@ -46,15 +54,17 @@ export class WhatsappController {
   @Get('admin/status')
   async getAdminStatus(@Req() req: any) {
     if (req.user.role !== 'ADMIN') throw new ForbiddenException('Admin only');
-    
-    const config = await this.prisma.systemConfig.findUnique({ where: { key: 'WHATSAPP_SYSTEM_ENABLED' } });
+
+    const config = await this.prisma.systemConfig.findUnique({
+      where: { key: 'WHATSAPP_SYSTEM_ENABLED' },
+    });
     const isEnabled = config?.value === 'true';
 
     const sessionStatus = this.whatsappService.getSessionStatus('SYSTEM');
 
     return {
       isEnabled,
-      ...sessionStatus
+      ...sessionStatus,
     };
   }
 
@@ -65,7 +75,10 @@ export class WhatsappController {
     await this.prisma.systemConfig.upsert({
       where: { key: 'WHATSAPP_SYSTEM_ENABLED' },
       update: { value: enabled ? 'true' : 'false' },
-      create: { key: 'WHATSAPP_SYSTEM_ENABLED', value: enabled ? 'true' : 'false' }
+      create: {
+        key: 'WHATSAPP_SYSTEM_ENABLED',
+        value: enabled ? 'true' : 'false',
+      },
     });
 
     if (enabled) {
@@ -80,15 +93,15 @@ export class WhatsappController {
   @Get('admin/logs')
   async getLogs(@Req() req: any) {
     if (req.user.role !== 'ADMIN') throw new ForbiddenException('Admin only');
-    
+
     const logs = await this.prisma.whatsappLog.findMany({
       orderBy: { createdAt: 'desc' },
       take: 200, // Limit for performance
       include: {
         tenant: {
-          select: { displayName: true }
-        }
-      }
+          select: { displayName: true },
+        },
+      },
     });
 
     return logs;

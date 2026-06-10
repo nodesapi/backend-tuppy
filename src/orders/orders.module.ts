@@ -9,7 +9,14 @@ import { ShippingModule } from '../shipping/shipping.module';
 import { ChatModule } from '../chat/chat.module';
 
 @Module({
-  imports: [PrismaModule, WhatsappModule, EmailModule, SubscriptionsModule, ShippingModule, ChatModule],
+  imports: [
+    PrismaModule,
+    WhatsappModule,
+    EmailModule,
+    SubscriptionsModule,
+    ShippingModule,
+    ChatModule,
+  ],
   controllers: [OrdersController],
   providers: [OrdersService],
 })

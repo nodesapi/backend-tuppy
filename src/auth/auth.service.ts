@@ -5,7 +5,11 @@
  * GitHub        : https://github.com/nodesapi
  */
 
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -34,14 +38,24 @@ export class AuthService {
 
   async login(user: any) {
     if (user.isTwoFactorEnabled) {
-      const payload = { email: user.email, sub: user.id, role: user.role, isTwoFactorAuthenticated: false };
+      const payload = {
+        email: user.email,
+        sub: user.id,
+        role: user.role,
+        isTwoFactorAuthenticated: false,
+      };
       return {
         requires2fa: true,
         tempToken: this.jwtService.sign(payload, { expiresIn: '5m' }),
       };
     }
 
-    const payload = { email: user.email, sub: user.id, role: user.role, isTwoFactorAuthenticated: true };
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
+      isTwoFactorAuthenticated: true,
+    };
     return {
       access_token: this.jwtService.sign(payload),
     };
@@ -58,7 +72,12 @@ export class AuthService {
       throw new UnauthorizedException('Kode 2FA tidak valid');
     }
 
-    const tokenPayload = { email: user.email, sub: user.id, role: user.role, isTwoFactorAuthenticated: true };
+    const tokenPayload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
+      isTwoFactorAuthenticated: true,
+    };
     return {
       access_token: this.jwtService.sign(tokenPayload),
     };
@@ -67,7 +86,7 @@ export class AuthService {
   async generateTwoFactorSecret(user: any) {
     const secret = authenticator.generateSecret();
     const otpauthUrl = authenticator.keyuri(user.email, 'Tupply', secret);
-    
+
     await this.usersService.update(user.id, { twoFactorSecret: secret });
 
     return {
@@ -108,7 +127,10 @@ export class AuthService {
       throw new BadRequestException('Kode 2FA tidak valid');
     }
 
-    await this.usersService.update(userId, { isTwoFactorEnabled: false, twoFactorSecret: null });
+    await this.usersService.update(userId, {
+      isTwoFactorEnabled: false,
+      twoFactorSecret: null,
+    });
   }
 
   async register(data: any) {
@@ -121,7 +143,7 @@ export class AuthService {
       ...data,
       password: hashedPassword,
     });
-    
+
     const { password, ...result } = user;
     return result;
   }

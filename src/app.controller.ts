@@ -14,14 +14,14 @@ import { PrismaService } from './prisma/prisma.service';
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get('config')
   async getPublicConfig() {
     const configs = await this.prisma.systemConfig.findMany();
     const configMap: Record<string, string> = {};
-    configs.forEach(c => configMap[c.key] = c.value);
+    configs.forEach((c) => (configMap[c.key] = c.value));
     return configMap;
   }
 

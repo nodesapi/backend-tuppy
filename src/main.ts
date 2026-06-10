@@ -14,7 +14,7 @@ import { NotFoundExceptionFilter } from './filters/not-found.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
-  
+
   // Register Global Exception Filters
   app.useGlobalFilters(new NotFoundExceptionFilter());
 
@@ -24,7 +24,11 @@ async function bootstrap() {
   // Protect Swagger UI with Custom Login
   app.use('/api/docs', (req: any, res: any, next: any) => {
     const session = req.cookies['tupply_docs_session'];
-    if (session && process.env.JWT_SECRET && session === process.env.JWT_SECRET) {
+    if (
+      session &&
+      process.env.JWT_SECRET &&
+      session === process.env.JWT_SECRET
+    ) {
       next();
     } else {
       res.redirect('/docs/login');
@@ -33,7 +37,11 @@ async function bootstrap() {
 
   app.use('/api/docs-json', (req: any, res: any, next: any) => {
     const session = req.cookies['tupply_docs_session'];
-    if (session && process.env.JWT_SECRET && session === process.env.JWT_SECRET) {
+    if (
+      session &&
+      process.env.JWT_SECRET &&
+      session === process.env.JWT_SECRET
+    ) {
       next();
     } else {
       res.status(401).send('Unauthorized');
@@ -43,11 +51,13 @@ async function bootstrap() {
   // Setup Swagger API Documentation
   const config = new DocumentBuilder()
     .setTitle('tupp.ly Backend API')
-    .setDescription('Dokumentasi API untuk platform tupp.ly (Zero-Fee Creator & Commerce Hub)')
+    .setDescription(
+      'Dokumentasi API untuk platform tupp.ly (Zero-Fee Creator & Commerce Hub)',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-    
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 

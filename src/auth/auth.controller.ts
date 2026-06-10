@@ -5,7 +5,15 @@
  * GitHub        : https://github.com/nodesapi
  */
 
-import { Controller, Request, Post, UseGuards, Body, Get, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Request,
+  Post,
+  UseGuards,
+  Body,
+  Get,
+  Patch,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -14,7 +22,10 @@ import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService, private usersService: UsersService) {}
+  constructor(
+    private authService: AuthService,
+    private usersService: UsersService,
+  ) {}
 
   @UseGuards(AuthGuard('local'))
   @Post('login')
@@ -56,7 +67,10 @@ export class AuthController {
   @Post('2fa/turn-on')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Turn on 2FA' })
-  async turnOnTwoFactorAuthentication(@Request() req: any, @Body('code') code: string) {
+  async turnOnTwoFactorAuthentication(
+    @Request() req: any,
+    @Body('code') code: string,
+  ) {
     await this.authService.turnOnTwoFactorAuthentication(req.user.sub, code);
     return { success: true, message: '2FA berhasil diaktifkan' };
   }
@@ -65,7 +79,10 @@ export class AuthController {
   @Post('2fa/turn-off')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Turn off 2FA' })
-  async turnOffTwoFactorAuthentication(@Request() req: any, @Body('code') code: string) {
+  async turnOffTwoFactorAuthentication(
+    @Request() req: any,
+    @Body('code') code: string,
+  ) {
     await this.authService.turnOffTwoFactorAuthentication(req.user.sub, code);
     return { success: true, message: '2FA berhasil dinonaktifkan' };
   }
@@ -102,10 +119,13 @@ export class AuthController {
   @Patch('profile')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update profil user admin/support' })
-  async updateProfile(@Request() req: any, @Body() body: { displayName?: string, avatarUrl?: string }) {
+  async updateProfile(
+    @Request() req: any,
+    @Body() body: { displayName?: string; avatarUrl?: string },
+  ) {
     const updated = await this.usersService.update(req.user.sub, {
       displayName: body.displayName,
-      avatarUrl: body.avatarUrl
+      avatarUrl: body.avatarUrl,
     });
     const { password, ...result } = updated;
     return result;

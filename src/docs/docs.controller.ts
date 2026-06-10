@@ -3,7 +3,6 @@ import type { Request, Response } from 'express';
 
 @Controller('docs')
 export class DocsController {
-  
   // Halaman HTML estetik untuk Login
   private renderLoginHtml(errorMsg = '') {
     return `
@@ -72,7 +71,11 @@ export class DocsController {
   getLoginPage(@Req() req: Request, @Res() res: Response) {
     // Jika sudah punya cookie yang valid, langsung arahkan ke docs
     const session = req.cookies['tupply_docs_session'];
-    if (session && process.env.JWT_SECRET && session === process.env.JWT_SECRET) {
+    if (
+      session &&
+      process.env.JWT_SECRET &&
+      session === process.env.JWT_SECRET
+    ) {
       return res.redirect('/api/docs');
     }
     return res.type('text/html').send(this.renderLoginHtml());
@@ -81,7 +84,7 @@ export class DocsController {
   @Post('login')
   postLogin(@Body() body: any, @Res() res: Response) {
     const { username, password } = body;
-    
+
     // Verifikasi credentials (sementara hardcode untuk API Docs protection)
     const validUser = 'admin';
     const validPass = 'tupply2026';
@@ -91,12 +94,14 @@ export class DocsController {
       res.cookie('tupply_docs_session', process.env.JWT_SECRET, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 1000 * 60 * 60 * 24 // 1 hari
+        maxAge: 1000 * 60 * 60 * 24, // 1 hari
       });
       return res.redirect('/api/docs');
     }
 
-    return res.type('text/html').send(this.renderLoginHtml('Username atau password salah!'));
+    return res
+      .type('text/html')
+      .send(this.renderLoginHtml('Username atau password salah!'));
   }
 
   @Get('logout')

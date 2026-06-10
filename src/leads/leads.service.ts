@@ -21,24 +21,32 @@ export class LeadsService {
 
     const invitations = await this.prisma.invitation.findMany({
       where: { tenantId: tenant.id },
-      select: { id: true, slug: true, title: true }
+      select: { id: true, slug: true, title: true },
     });
-    
+
     const invMap = new Map();
-    invitations.forEach(inv => invMap.set(`invitation-${inv.id}`, inv));
-    
-    return leads.map(lead => {
+    invitations.forEach((inv) => invMap.set(`invitation-${inv.id}`, inv));
+
+    return leads.map((lead) => {
       if (lead.blockId && lead.blockId.startsWith('invitation-')) {
         const inv = invMap.get(lead.blockId);
         if (inv) {
-          return { ...lead, invitationSlug: inv.slug, invitationTitle: inv.title };
+          return {
+            ...lead,
+            invitationSlug: inv.slug,
+            invitationTitle: inv.title,
+          };
         }
       }
       return lead;
     });
   }
 
-  async updateLeadStatus(leadId: string, dto: UpdateLeadStatusDto, userId: string) {
+  async updateLeadStatus(
+    leadId: string,
+    dto: UpdateLeadStatusDto,
+    userId: string,
+  ) {
     const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
     if (!tenant) throw new NotFoundException('Tenant tidak ditemukan.');
 
@@ -51,7 +59,9 @@ export class LeadsService {
       where: { id: leadId },
       data: {
         status: dto.status,
-        ...(dto.internalNote !== undefined && { internalNote: dto.internalNote }),
+        ...(dto.internalNote !== undefined && {
+          internalNote: dto.internalNote,
+        }),
       },
     });
   }
@@ -62,7 +72,9 @@ export class LeadsService {
     if (!tenant) return { orders: 0, leads: 0, total: 0 };
 
     const [orders, leads] = await Promise.all([
-      this.prisma.order.count({ where: { tenantId: tenant.id, status: 'PENDING' } }),
+      this.prisma.order.count({
+        where: { tenantId: tenant.id, status: 'PENDING' },
+      }),
       this.prisma.lead.count({ where: { tenantId: tenant.id, status: 'NEW' } }),
     ]);
 

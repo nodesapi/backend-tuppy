@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Headers, Ip } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Headers,
+  Ip,
+} from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -12,9 +21,15 @@ export class AnalyticsController {
   // Publik endpoint: ditembak oleh pengunjung toko (CORS enabled by default in main.ts)
   @Post('track')
   async track(
-    @Body() body: { tenantId: string; type: 'PAGE_VIEW' | 'LINK_CLICK'; targetId?: string; referrer?: string },
+    @Body()
+    body: {
+      tenantId: string;
+      type: 'PAGE_VIEW' | 'LINK_CLICK';
+      targetId?: string;
+      referrer?: string;
+    },
     @Headers('user-agent') userAgent: string,
-    @Ip() ip: string
+    @Ip() ip: string,
   ) {
     // Basic IP Hashing (Optional: bisa pakai crypto hash)
     const ipHash = ip ? Buffer.from(ip).toString('base64') : 'unknown';
@@ -41,9 +56,9 @@ export class AnalyticsController {
       device: deviceType,
       os: osName,
       country,
-      city
+      city,
     });
-    
+
     return { success: true };
   }
 

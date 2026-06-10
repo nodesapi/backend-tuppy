@@ -23,7 +23,13 @@ export class EmailService {
   /**
    * Mengirim email struk order ke pembeli
    */
-  async sendOrderReceipt(toEmail: string, orderNumber: string, customerName: string, trackingLink: string, tenantName: string) {
+  async sendOrderReceipt(
+    toEmail: string,
+    orderNumber: string,
+    customerName: string,
+    trackingLink: string,
+    tenantName: string,
+  ) {
     if (!toEmail) {
       this.logger.warn('Cannot send email receipt: No email provided.');
       return false;
@@ -47,8 +53,10 @@ export class EmailService {
       // Untuk development, ini mungkin akan gagal jika SMTP_USER tidak valid.
       // Anda bisa menggunakan layanan seperti Ethereal Email atau SMTP asli nanti.
       if (process.env.SMTP_USER === 'test@example.com') {
-          this.logger.log(`[MOCK EMAIL] Sent to ${toEmail} for Order ${orderNumber}`);
-          return true;
+        this.logger.log(
+          `[MOCK EMAIL] Sent to ${toEmail} for Order ${orderNumber}`,
+        );
+        return true;
       }
 
       await this.transporter.sendMail({

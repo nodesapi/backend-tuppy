@@ -1,4 +1,12 @@
-import { Controller, Get, Put, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { PagesService } from './pages.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -19,7 +27,11 @@ export class PagesController {
 
   @UseGuards(AuthGuard('jwt'))
   @Put('my/:slug')
-  updateMyPage(@Request() req: any, @Param('slug') slug: string, @Body() data: any) {
+  updateMyPage(
+    @Request() req: any,
+    @Param('slug') slug: string,
+    @Body() data: any,
+  ) {
     return this.pagesService.updateMyPage(req.user.id, slug, data);
   }
 }

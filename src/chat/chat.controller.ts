@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ChatService } from './chat.service';
 import {
@@ -33,13 +42,19 @@ export class ChatController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('mine')
-  getMyConversations(@Request() req: any, @Query() query: SellerConversationQueryDto) {
+  getMyConversations(
+    @Request() req: any,
+    @Query() query: SellerConversationQueryDto,
+  ) {
     return this.chatService.getMyConversations(req.user.id, query);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Get('mine/:conversationId')
-  getMyConversation(@Request() req: any, @Param('conversationId') conversationId: string) {
+  getMyConversation(
+    @Request() req: any,
+    @Param('conversationId') conversationId: string,
+  ) {
     return this.chatService.getMyConversation(req.user.id, conversationId);
   }
 
@@ -60,7 +75,12 @@ export class ChatController {
     @Query('orderNumber') orderNumber?: string,
     @Query('phone') phone?: string,
   ) {
-    return this.chatService.getConversationForBuyer(conversationId, guestToken, orderNumber, phone);
+    return this.chatService.getConversationForBuyer(
+      conversationId,
+      guestToken,
+      orderNumber,
+      phone,
+    );
   }
 
   @Post(':conversationId/messages')

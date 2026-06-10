@@ -1,11 +1,21 @@
-import { Injectable, BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ReviewsService {
   constructor(private prisma: PrismaService) {}
 
-  async createReview(orderNumber: string, phone: string, rating: number, comment?: string) {
+  async createReview(
+    orderNumber: string,
+    phone: string,
+    rating: number,
+    comment?: string,
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { orderNumber },
     });
@@ -16,11 +26,15 @@ export class ReviewsService {
 
     // Convert both to lower/trim for safe matching
     if (order.customerPhone.trim() !== phone.trim()) {
-      throw new UnauthorizedException('Nomor WhatsApp tidak cocok dengan data pesanan');
+      throw new UnauthorizedException(
+        'Nomor WhatsApp tidak cocok dengan data pesanan',
+      );
     }
 
     if (order.status !== 'DELIVERED') {
-      throw new BadRequestException('Ulasan hanya bisa diberikan untuk pesanan yang sudah selesai atau dikirim.');
+      throw new BadRequestException(
+        'Ulasan hanya bisa diberikan untuk pesanan yang sudah selesai atau dikirim.',
+      );
     }
 
     const existingReview = await this.prisma.review.findUnique({
@@ -28,7 +42,9 @@ export class ReviewsService {
     });
 
     if (existingReview) {
-      throw new BadRequestException('Pesanan ini sudah diberikan ulasan sebelumnya.');
+      throw new BadRequestException(
+        'Pesanan ini sudah diberikan ulasan sebelumnya.',
+      );
     }
 
     const review = await this.prisma.review.create({
@@ -42,7 +58,7 @@ export class ReviewsService {
 
     return {
       message: 'Ulasan berhasil disimpan',
-      review
+      review,
     };
   }
 
@@ -54,13 +70,13 @@ export class ReviewsService {
           select: {
             customerName: true,
             items: {
-              select: { productName: true }
-            }
-          }
-        }
+              select: { productName: true },
+            },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50 // Limit to recent 50 for now
+      take: 50, // Limit to recent 50 for now
     });
     return reviews;
   }

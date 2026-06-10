@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminService } from './admin.service';
 
@@ -31,9 +41,14 @@ export class AdminController {
   suspendTenant(
     @Request() req: any,
     @Param('id') tenantId: string,
-    @Body() body: { isSuspended: boolean; reason?: string }
+    @Body() body: { isSuspended: boolean; reason?: string },
   ) {
-    return this.adminService.suspendTenant(req.user.id, tenantId, body.isSuspended, body.reason);
+    return this.adminService.suspendTenant(
+      req.user.id,
+      tenantId,
+      body.isSuspended,
+      body.reason,
+    );
   }
 
   @Get('tickets')
@@ -45,7 +60,7 @@ export class AdminController {
   updateTicketStatus(
     @Request() req: any,
     @Param('id') ticketId: string,
-    @Body('status') status: string
+    @Body('status') status: string,
   ) {
     return this.adminService.updateTicketStatus(req.user.id, ticketId, status);
   }
@@ -59,7 +74,7 @@ export class AdminController {
   @Patch('config')
   updateGlobalConfig(
     @Request() req: any,
-    @Body() body: Record<string, string>
+    @Body() body: Record<string, string>,
   ) {
     return this.adminService.updateGlobalConfig(req.user.id, body);
   }
@@ -73,9 +88,13 @@ export class AdminController {
   processWithdrawalRequest(
     @Request() req: any,
     @Param('id') requestId: string,
-    @Body('proofUrl') proofUrl: string
+    @Body('proofUrl') proofUrl: string,
   ) {
-    return this.adminService.processWithdrawalRequest(req.user.id, requestId, proofUrl);
+    return this.adminService.processWithdrawalRequest(
+      req.user.id,
+      requestId,
+      proofUrl,
+    );
   }
 
   @Get('kyc')
@@ -87,15 +106,20 @@ export class AdminController {
   updateKycStatus(
     @Request() req: any,
     @Param('tenantId') tenantId: string,
-    @Body() body: { status: string; reason?: string }
+    @Body() body: { status: string; reason?: string },
   ) {
-    return this.adminService.updateKycStatus(req.user.id, tenantId, body.status, body.reason);
+    return this.adminService.updateKycStatus(
+      req.user.id,
+      tenantId,
+      body.status,
+      body.reason,
+    );
   }
 
   @Post('invitations/music')
   addMusicPreset(
     @Request() req: any,
-    @Body() data: { name: string; url: string }
+    @Body() data: { name: string; url: string },
   ) {
     return this.adminService.addMusicPreset(req.user.id, data);
   }
@@ -106,17 +130,14 @@ export class AdminController {
   }
 
   @Delete('invitations/music/:id')
-  deleteMusicPreset(
-    @Request() req: any,
-    @Param('id') id: string
-  ) {
+  deleteMusicPreset(@Request() req: any, @Param('id') id: string) {
     return this.adminService.deleteMusicPreset(req.user.id, id);
   }
 
   @Post('invitations/background')
   addBackgroundPreset(
     @Request() req: any,
-    @Body() data: { name: string; url: string }
+    @Body() data: { name: string; url: string },
   ) {
     return this.adminService.addBackgroundPreset(req.user.id, data);
   }
@@ -127,11 +148,7 @@ export class AdminController {
   }
 
   @Delete('invitations/background/:id')
-  deleteBackgroundPreset(
-    @Request() req: any,
-    @Param('id') id: string
-  ) {
+  deleteBackgroundPreset(@Request() req: any, @Param('id') id: string) {
     return this.adminService.deleteBackgroundPreset(req.user.id, id);
   }
 }
-

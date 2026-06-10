@@ -1,6 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChatGateway } from './chat.gateway';
 import {
   BuyerChatMessageDto,
   SellerChatMessageDto,
@@ -10,7 +17,11 @@ import {
 
 @Injectable()
 export class ChatService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   private normalizePhone(phone: string) {
     return `${phone || ''}`.replace(/[^\d]/g, '');
@@ -21,7 +32,10 @@ export class ChatService {
     return value.length > 0 ? value : null;
   }
 
-  private resolveMessageType(text?: string | null, attachmentUrl?: string | null) {
+  private resolveMessageType(
+    text?: string | null,
+    attachmentUrl?: string | null,
+  ) {
     if (attachmentUrl) return 'IMAGE';
     if (text) return 'TEXT';
     return 'SYSTEM';
@@ -104,9 +118,16 @@ export class ChatService {
       return conversation;
     }
 
-    if (orderNumber && customerPhone && conversation.order?.orderNumber === orderNumber) {
+    if (
+      orderNumber &&
+      customerPhone &&
+      conversation.order?.orderNumber === orderNumber
+    ) {
       const normalizedPhone = this.normalizePhone(customerPhone);
-      if (normalizedPhone && normalizedPhone === this.normalizePhone(conversation.customerPhone)) {
+      if (
+        normalizedPhone &&
+        normalizedPhone === this.normalizePhone(conversation.customerPhone)
+      ) {
         return conversation;
       }
     }
@@ -120,17 +141,21 @@ export class ChatService {
       throw new BadRequestException('Nomor HP wajib diisi.');
     }
 
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { username: dto.tenantUsername },
-    });
+    let tenantId = null;
+    if (dto.tenantUsername) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { username: dto.tenantUsername },
+      });
 
-    if (!tenant) {
-      throw new NotFoundException('Toko tidak ditemukan.');
+      if (!tenant) {
+        throw new NotFoundException('Toko tidak ditemukan.');
+      }
+      tenantId = tenant.id;
     }
 
     const existing = await this.prisma.chatConversation.findFirst({
       where: {
-        tenantId: tenant.id,
+        tenantId,
         customerPhone: normalizedPhone,
       },
       orderBy: {
@@ -163,7 +188,7 @@ export class ChatService {
         })
       : await this.prisma.chatConversation.create({
           data: {
-            tenantId: tenant.id,
+            tenantId,
             customerName: dto.customerName.trim(),
             customerPhone: normalizedPhone,
             customerEmail: dto.customerEmail?.trim() || null,
@@ -252,10 +277,17 @@ export class ChatService {
     });
 
     if (!conversation) {
-      throw new NotFoundException('Percakapan untuk pesanan ini belum tersedia.');
+      throw new NotFoundException(
+        'Percakapan untuk pesanan ini belum tersedia.',
+      );
     }
 
-    return this.getConversationForBuyer(conversation.id, undefined, orderNumber, normalizedPhone);
+    return this.getConversationForBuyer(
+      conversation.id,
+      undefined,
+      orderNumber,
+      normalizedPhone,
+    );
   }
 
   async sendBuyerMessage(conversationId: string, dto: BuyerChatMessageDto) {
@@ -298,15 +330,42 @@ export class ChatService {
       return created;
     });
 
-    return this.mapMessage(message);
+    const mappedMessage = this.mapMessage(message);
+
+    // Notify seller/admin via websocket
+    if (conversation.tenantId) {
+      this.chatGateway.server
+        .to(`tenant_${conversation.tenantId}`)
+        .emit('newMessage', mappedMessage);
+      this.chatGateway.server
+        .to(`tenant_${conversation.tenantId}`)
+        .emit('conversationUpdated', {
+          id: conversationId,
+          unreadCount: conversation.unreadSellerCount + 1,
+        });
+    } else {
+      this.chatGateway.notifyPlatformStaff(mappedMessage);
+      this.chatGateway.server.to('platform_staff').emit('conversationUpdated', {
+        id: conversationId,
+        unreadCount: conversation.unreadSellerCount + 1,
+      });
+    }
+
+    return mappedMessage;
   }
 
   async getMyConversations(userId: string, query?: SellerConversationQueryDto) {
-    const tenant = await this.getTenantByUser(userId);
-    if (!tenant) return [];
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return [];
 
-    const normalizedSearch = query?.search?.trim();
-    const where: any = { tenantId: tenant.id };
+    let where: any = {};
+    if (user.role === 'ADMIN' || user.role === 'SUPPORT') {
+      where = { tenantId: null };
+    } else {
+      const tenant = await this.getTenantByUser(userId);
+      if (!tenant) return [];
+      where = { tenantId: tenant.id };
+    }
 
     if (query?.status) {
       where.status = query.status;
@@ -316,11 +375,18 @@ export class ChatService {
       where.unreadSellerCount = { gt: 0 };
     }
 
+    const normalizedSearch = query?.search?.trim();
     if (normalizedSearch) {
       where.OR = [
         { customerName: { contains: normalizedSearch, mode: 'insensitive' } },
         { customerPhone: { contains: normalizedSearch } },
-        { order: { is: { orderNumber: { contains: normalizedSearch, mode: 'insensitive' } } } },
+        {
+          order: {
+            is: {
+              orderNumber: { contains: normalizedSearch, mode: 'insensitive' },
+            },
+          },
+        },
       ];
     }
 
@@ -337,15 +403,26 @@ export class ChatService {
       take: 100,
     });
 
-    return conversations.map((conversation) => this.mapConversation(conversation));
+    return conversations.map((conversation) =>
+      this.mapConversation(conversation),
+    );
   }
 
   async getUnreadCount(userId: string) {
-    const tenant = await this.getTenantByUser(userId);
-    if (!tenant) return { total: 0 };
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return { total: 0 };
+
+    let where: any = {};
+    if (user.role === 'ADMIN' || user.role === 'SUPPORT') {
+      where = { tenantId: null };
+    } else {
+      const tenant = await this.getTenantByUser(userId);
+      if (!tenant) return { total: 0 };
+      where = { tenantId: tenant.id };
+    }
 
     const aggregate = await this.prisma.chatConversation.aggregate({
-      where: { tenantId: tenant.id },
+      where,
       _sum: { unreadSellerCount: true },
     });
 
@@ -353,16 +430,20 @@ export class ChatService {
   }
 
   async getMyConversation(userId: string, conversationId: string) {
-    const tenant = await this.getTenantByUser(userId);
-    if (!tenant) {
-      throw new NotFoundException('Tenant tidak ditemukan.');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User tidak ditemukan.');
+
+    let where: any = { id: conversationId };
+    if (user.role === 'ADMIN' || user.role === 'SUPPORT') {
+      where.tenantId = null;
+    } else {
+      const tenant = await this.getTenantByUser(userId);
+      if (!tenant) throw new NotFoundException('Tenant tidak ditemukan.');
+      where.tenantId = tenant.id;
     }
 
     const conversation = await this.prisma.chatConversation.findFirst({
-      where: {
-        id: conversationId,
-        tenantId: tenant.id,
-      },
+      where,
       include: {
         order: true,
       },
@@ -391,10 +472,24 @@ export class ChatService {
     };
   }
 
-  async sendSellerMessage(userId: string, conversationId: string, dto: SellerChatMessageDto) {
-    const tenant = await this.getTenantByUser(userId);
-    if (!tenant) {
-      throw new NotFoundException('Tenant tidak ditemukan.');
+  async sendSellerMessage(
+    userId: string,
+    conversationId: string,
+    dto: SellerChatMessageDto,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User tidak ditemukan.');
+
+    let where: any = { id: conversationId };
+    let senderName = user.displayName || 'Support Team';
+
+    if (user.role === 'ADMIN' || user.role === 'SUPPORT') {
+      where.tenantId = null;
+    } else {
+      const tenant = await this.getTenantByUser(userId);
+      if (!tenant) throw new NotFoundException('Tenant tidak ditemukan.');
+      where.tenantId = tenant.id;
+      senderName = tenant.displayName;
     }
 
     const text = this.sanitizeText(dto.text);
@@ -403,10 +498,7 @@ export class ChatService {
     }
 
     const conversation = await this.prisma.chatConversation.findFirst({
-      where: {
-        id: conversationId,
-        tenantId: tenant.id,
-      },
+      where,
     });
 
     if (!conversation) {
@@ -418,7 +510,7 @@ export class ChatService {
         data: {
           conversationId,
           senderType: 'SELLER',
-          senderName: tenant.displayName,
+          senderName,
           messageType: this.resolveMessageType(text, dto.attachmentUrl),
           text,
           attachmentUrl: dto.attachmentUrl || null,
@@ -440,7 +532,14 @@ export class ChatService {
       return created;
     });
 
-    return this.mapMessage(message);
+    const mappedMessage = this.mapMessage(message);
+
+    // Notify buyer via websocket
+    if (conversation.guestToken) {
+      this.chatGateway.notifyGuest(conversation.guestToken, mappedMessage);
+    }
+
+    return mappedMessage;
   }
 
   async linkOrderToConversation(params: {
@@ -472,7 +571,8 @@ export class ChatService {
               orderId: params.orderId,
               customerName: params.customerName,
               customerPhone: normalizedPhone,
-              customerEmail: params.customerEmail || latestConversation.customerEmail,
+              customerEmail:
+                params.customerEmail || latestConversation.customerEmail,
               status: 'OPEN',
             },
           })

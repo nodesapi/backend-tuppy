@@ -1,4 +1,12 @@
-import { Controller, Post, Body, UseGuards, Request, Get, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Get,
+  Param,
+} from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -20,8 +28,25 @@ export class SubscriptionsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('checkout')
-  createCheckout(@Request() req: any, @Body() body: { plan: string, channelId: number, type?: 'COMMERCE' | 'EVENT' | 'TOPUP', invitationId?: string, topupAmount?: number }) {
-    return this.subscriptionsService.createCheckout(req.user.id, body.plan, body.channelId, body.type || 'COMMERCE', body.invitationId, body.topupAmount);
+  createCheckout(
+    @Request() req: any,
+    @Body()
+    body: {
+      plan: string;
+      channelId: number;
+      type?: 'COMMERCE' | 'EVENT' | 'TOPUP';
+      invitationId?: string;
+      topupAmount?: number;
+    },
+  ) {
+    return this.subscriptionsService.createCheckout(
+      req.user.id,
+      body.plan,
+      body.channelId,
+      body.type || 'COMMERCE',
+      body.invitationId,
+      body.topupAmount,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))

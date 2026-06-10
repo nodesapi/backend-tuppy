@@ -12,7 +12,12 @@ export class ReviewsController {
     @Body('rating') rating: number,
     @Body('comment') comment?: string,
   ) {
-    return this.reviewsService.createReview(orderNumber, phone, rating, comment);
+    return this.reviewsService.createReview(
+      orderNumber,
+      phone,
+      rating,
+      comment,
+    );
   }
 
   @Get('tenant/:tenantId')

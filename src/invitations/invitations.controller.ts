@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Delete, Body, UseGuards, Request, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  UseGuards,
+  Request,
+  Param,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { InvitationsService } from './invitations.service';
 
@@ -32,7 +41,11 @@ export class InvitationsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post(':id')
-  async updateInvitation(@Request() req: any, @Param('id') id: string, @Body() data: any) {
+  async updateInvitation(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
     return this.invitationsService.updateInvitation(req.user.id, id, data);
   }
 
@@ -69,7 +82,11 @@ export class InvitationsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post(':id/upgrade-wallet')
-  async upgradeWithWallet(@Request() req: any, @Param('id') id: string, @Body('plan') plan: string) {
+  async upgradeWithWallet(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body('plan') plan: string,
+  ) {
     return this.invitationsService.upgradeWithWallet(req.user.id, id, plan);
   }
 }

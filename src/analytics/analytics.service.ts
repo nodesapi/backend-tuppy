@@ -6,7 +6,18 @@ export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Merekam event (Bisa dipanggil oleh frontend publik)
-  async trackEvent(data: { tenantId: string; type: 'PAGE_VIEW' | 'LINK_CLICK'; targetId?: string; userAgent?: string; ipHash?: string; referrer?: string; country?: string; city?: string; device?: string; os?: string; }) {
+  async trackEvent(data: {
+    tenantId: string;
+    type: 'PAGE_VIEW' | 'LINK_CLICK';
+    targetId?: string;
+    userAgent?: string;
+    ipHash?: string;
+    referrer?: string;
+    country?: string;
+    city?: string;
+    device?: string;
+    os?: string;
+  }) {
     return this.prisma.analyticsEvent.create({
       data: {
         tenantId: data.tenantId,
@@ -18,8 +29,8 @@ export class AnalyticsService {
         country: data.country,
         city: data.city,
         device: data.device,
-        os: data.os
-      }
+        os: data.os,
+      },
     });
   }
 
@@ -29,10 +40,16 @@ export class AnalyticsService {
     if (!tenant) {
       return {
         isPremiumActive: false,
-        overview: { totalViews: 0, totalClicks: 0, ctr: 0, totalSales: 0, walletBalance: 0 },
+        overview: {
+          totalViews: 0,
+          totalClicks: 0,
+          ctr: 0,
+          totalSales: 0,
+          walletBalance: 0,
+        },
         chartData: [],
         topLinks: [],
-        demographics: null
+        demographics: null,
       };
     }
 
@@ -40,24 +57,27 @@ export class AnalyticsService {
 
     // Hitung Total Views & Clicks (semua waktu atau bisa dilimit)
     const totalViews = await this.prisma.analyticsEvent.count({
-      where: { tenantId, type: 'PAGE_VIEW' }
+      where: { tenantId, type: 'PAGE_VIEW' },
     });
 
     const totalClicks = await this.prisma.analyticsEvent.count({
-      where: { tenantId, type: 'LINK_CLICK' }
+      where: { tenantId, type: 'LINK_CLICK' },
     });
 
-    const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(2) : 0;
+    const ctr =
+      totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(2) : 0;
 
     // Hitung Total Penjualan & Saldo
     const totalSalesAggr = await this.prisma.order.aggregate({
       _sum: { grandTotal: true },
-      where: { 
-        tenantId, 
-        status: { in: ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'] }
-      }
+      where: {
+        tenantId,
+        status: {
+          in: ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'],
+        },
+      },
     });
-    
+
     const totalSales = totalSalesAggr._sum.grandTotal || 0;
     const walletBalance = tenant.walletBalance || 0;
 
@@ -78,24 +98,24 @@ export class AnalyticsService {
           where: {
             tenantId,
             type: 'PAGE_VIEW',
-            createdAt: { gte: date, lt: nextDate }
-          }
+            createdAt: { gte: date, lt: nextDate },
+          },
         });
 
         const clicks = await this.prisma.analyticsEvent.count({
           where: {
             tenantId,
             type: 'LINK_CLICK',
-            createdAt: { gte: date, lt: nextDate }
-          }
+            createdAt: { gte: date, lt: nextDate },
+          },
         });
 
         return {
           date: date.toISOString().split('T')[0], // YYYY-MM-DD
           views,
-          clicks
+          clicks,
         };
-      })
+      }),
     );
 
     // Ambil Top Links (Block yang paling banyak diklik)
@@ -104,26 +124,31 @@ export class AnalyticsService {
       where: {
         tenantId,
         type: 'LINK_CLICK',
-        targetId: { not: null }
+        targetId: { not: null },
       },
       _count: { targetId: true },
       orderBy: { _count: { targetId: 'desc' } },
-      take: 5
+      take: 5,
     });
 
     const topLinks = await Promise.all(
       clickEvents.map(async (event) => {
-        const block = await this.prisma.block.findUnique({ where: { id: event.targetId as string } });
+        const block = await this.prisma.block.findUnique({
+          where: { id: event.targetId as string },
+        });
         return {
           blockId: event.targetId,
           clicks: event._count.targetId,
-          content: block?.content || null
+          content: block?.content || null,
         };
-      })
+      }),
     );
 
-    const isPremiumActive = tenant.isPremium && tenant.premiumUntil && tenant.premiumUntil > new Date();
-    
+    const isPremiumActive =
+      tenant.isPremium &&
+      tenant.premiumUntil &&
+      tenant.premiumUntil > new Date();
+
     let demographics = null;
     if (isPremiumActive) {
       // Aggregasi Negara
@@ -132,23 +157,23 @@ export class AnalyticsService {
         where: { tenantId, country: { notIn: ['Unknown', ''] } },
         _count: { country: true },
         orderBy: { _count: { country: 'desc' } },
-        take: 5
+        take: 5,
       });
-      
+
       // Aggregasi Perangkat
       const deviceGroup = await this.prisma.analyticsEvent.groupBy({
         by: ['device'],
         where: { tenantId, device: { not: null } },
         _count: { device: true },
-        orderBy: { _count: { device: 'desc' } }
+        orderBy: { _count: { device: 'desc' } },
       });
-      
+
       // Aggregasi OS
       const osGroup = await this.prisma.analyticsEvent.groupBy({
         by: ['os'],
         where: { tenantId, os: { not: null } },
         _count: { os: true },
-        orderBy: { _count: { os: 'desc' } }
+        orderBy: { _count: { os: 'desc' } },
       });
 
       // Aggregasi Kota (Khusus Indonesia)
@@ -157,7 +182,7 @@ export class AnalyticsService {
         where: { tenantId, country: 'ID', city: { notIn: ['Unknown', ''] } },
         _count: { city: true },
         orderBy: { _count: { city: 'desc' } },
-        take: 38 // 38 Provinsi/Region
+        take: 38, // 38 Provinsi/Region
       });
 
       // Aggregasi Referrer (Sumber Trafik)
@@ -166,30 +191,39 @@ export class AnalyticsService {
         where: { tenantId, referrer: { not: null } },
         _count: { referrer: true },
         orderBy: { _count: { referrer: 'desc' } },
-        take: 5
+        take: 5,
       });
 
       demographics = {
-        countries: countryGroup.map(g => ({ name: g.country, count: g._count.country })),
-        cities: cityGroup.map(g => ({ name: g.city, count: g._count.city })),
-        devices: deviceGroup.map(g => ({ name: g.device, count: g._count.device })),
-        os: osGroup.map(g => ({ name: g.os, count: g._count.os })),
-        referrers: referrerGroup.map(g => ({ name: g.referrer, count: g._count.referrer }))
+        countries: countryGroup.map((g) => ({
+          name: g.country,
+          count: g._count.country,
+        })),
+        cities: cityGroup.map((g) => ({ name: g.city, count: g._count.city })),
+        devices: deviceGroup.map((g) => ({
+          name: g.device,
+          count: g._count.device,
+        })),
+        os: osGroup.map((g) => ({ name: g.os, count: g._count.os })),
+        referrers: referrerGroup.map((g) => ({
+          name: g.referrer,
+          count: g._count.referrer,
+        })),
       };
     }
 
     return {
       isPremiumActive,
-      overview: { 
-        totalViews, 
-        totalClicks, 
+      overview: {
+        totalViews,
+        totalClicks,
         ctr: parseFloat(ctr as string),
         totalSales,
-        walletBalance
+        walletBalance,
       },
       chartData,
       topLinks,
-      demographics
+      demographics,
     };
   }
 }

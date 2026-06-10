@@ -6,7 +6,7 @@ export class DocsMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     // Mengecek apakah cookie session valid
     const session = req.cookies['tupply_docs_session'];
-    
+
     if (session === process.env.JWT_SECRET) {
       // Jika valid, izinkan masuk ke halaman Swagger API
       next();

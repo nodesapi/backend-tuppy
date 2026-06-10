@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, NotFoundException, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  NotFoundException,
+  Query,
+} from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,7 +20,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
   ) {}
 
   private async getTenantId(userId: string) {
@@ -20,7 +32,8 @@ export class ProductsController {
   @Get()
   async findAll(@Request() req: any, @Query('isPhysical') isPhysical?: string) {
     const tenantId = await this.getTenantId(req.user.id);
-    const parsedIsPhysical = isPhysical !== undefined ? isPhysical === 'true' : undefined;
+    const parsedIsPhysical =
+      isPhysical !== undefined ? isPhysical === 'true' : undefined;
     return this.productsService.findAll(tenantId, parsedIsPhysical);
   }
 
@@ -33,7 +46,19 @@ export class ProductsController {
   @Post()
   async create(@Request() req: any, @Body() body: any) {
     const tenantId = await this.getTenantId(req.user.id);
-    const { title, description, price, fileUrl, fileSize, imageUrl, images, isPhysical, weight, stock, sku } = body;
+    const {
+      title,
+      description,
+      price,
+      fileUrl,
+      fileSize,
+      imageUrl,
+      images,
+      isPhysical,
+      weight,
+      stock,
+      sku,
+    } = body;
     return this.productsService.create(tenantId, {
       title,
       description,
@@ -45,12 +70,16 @@ export class ProductsController {
       isPhysical: isPhysical === true || isPhysical === 'true',
       weight: weight !== undefined ? Number(weight) : undefined,
       stock: stock !== undefined ? Number(stock) : undefined,
-      sku
+      sku,
     });
   }
 
   @Put(':id')
-  async update(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+  async update(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
     const tenantId = await this.getTenantId(req.user.id);
     const { title, description, price, images, weight, stock, sku } = body;
     return this.productsService.update(tenantId, id, {
@@ -61,12 +90,16 @@ export class ProductsController {
       images: images,
       weight: weight !== undefined ? Number(weight) : undefined,
       stock: stock !== undefined ? Number(stock) : undefined,
-      sku
+      sku,
     });
   }
 
   @Delete(':id')
-  async remove(@Request() req: any, @Param('id') id: string, @Body('fileSize') fileSize: number) {
+  async remove(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body('fileSize') fileSize: number,
+  ) {
     const tenantId = await this.getTenantId(req.user.id);
     return this.productsService.remove(tenantId, id, Number(fileSize || 0));
   }

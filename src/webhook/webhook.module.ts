@@ -7,6 +7,6 @@ import { WhatsappModule } from '../whatsapp/whatsapp.module';
 @Module({
   imports: [PrismaModule, WhatsappModule],
   controllers: [WebhookController],
-  providers: [WebhookService]
+  providers: [WebhookService],
 })
 export class WebhookModule {}

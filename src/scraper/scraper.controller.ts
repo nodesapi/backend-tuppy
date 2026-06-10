@@ -14,7 +14,7 @@ export class ScraperController {
     if (!url) {
       throw new BadRequestException('URL parameter is required');
     }
-    
+
     // Simple URL validation
     try {
       new URL(url);

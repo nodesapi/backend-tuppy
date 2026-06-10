@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -23,7 +27,7 @@ export class TicketsService {
         message: data.message,
         type: data.type || 'SUPPORT',
         targetId: data.targetId,
-      }
+      },
     });
   }
 
@@ -33,7 +37,7 @@ export class TicketsService {
 
     return this.prisma.ticket.findMany({
       where: { tenantId: tenant.id },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: 'desc' },
     });
   }
 
@@ -45,9 +49,9 @@ export class TicketsService {
       where: { id: ticketId, tenantId: tenant.id },
       include: {
         messages: {
-          orderBy: { createdAt: 'asc' }
-        }
-      }
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
 
     if (!ticket) throw new NotFoundException('Ticket not found');
@@ -56,23 +60,25 @@ export class TicketsService {
 
   async replyTicket(userId: string, ticketId: string, messageText: string) {
     const ticket = await this.getTicketDetail(userId, ticketId);
-    
+
     if (ticket.status === 'CLOSED' || ticket.status === 'RESOLVED') {
-      throw new BadRequestException('Tiket sudah ditutup dan tidak dapat dibalas lagi.');
+      throw new BadRequestException(
+        'Tiket sudah ditutup dan tidak dapat dibalas lagi.',
+      );
     }
 
     const message = await this.prisma.ticketMessage.create({
       data: {
         ticketId,
         senderType: 'USER',
-        message: messageText
-      }
+        message: messageText,
+      },
     });
 
     // Update ticket updatedAt
     await this.prisma.ticket.update({
       where: { id: ticketId },
-      data: { updatedAt: new Date() }
+      data: { updatedAt: new Date() },
     });
 
     return message;

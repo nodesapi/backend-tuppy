@@ -10,7 +10,7 @@ export class ScraperService {
     try {
       // Validate URL
       const parsedUrl = new URL(url);
-      
+
       // Determine Platform
       let platform = 'unknown';
       if (parsedUrl.hostname.includes('shopee.')) {
@@ -24,8 +24,10 @@ export class ScraperService {
       // Fetch HTML (With User-Agent to avoid basic bot blocks)
       const response = await axios.get(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.5',
         },
         timeout: 10000,
@@ -35,9 +37,13 @@ export class ScraperService {
       const $ = cheerio.load(html);
 
       // Extract OpenGraph data
-      let title = $('meta[property="og:title"]').attr('content') || $('title').text() || '';
+      let title =
+        $('meta[property="og:title"]').attr('content') ||
+        $('title').text() ||
+        '';
       let image = $('meta[property="og:image"]').attr('content') || '';
-      let description = $('meta[property="og:description"]').attr('content') || '';
+      let description =
+        $('meta[property="og:description"]').attr('content') || '';
 
       // Marketplace Specific Tweaks (because they sometimes don't use standard OG)
       if (platform === 'shopee') {
@@ -52,7 +58,9 @@ export class ScraperService {
 
       // Ensure we have at least something
       if (!title && !image) {
-         throw new Error('Could not find meaningful metadata. It might be blocked by bot protection.');
+        throw new Error(
+          'Could not find meaningful metadata. It might be blocked by bot protection.',
+        );
       }
 
       return {
@@ -62,10 +70,9 @@ export class ScraperService {
         image,
         description,
       };
-
     } catch (error) {
       this.logger.error(`Failed to scrape ${url}: ${error.message}`);
-      
+
       // Return a structured failure instead of throwing HTTP error
       // so the frontend knows it must use manual fallback.
       return {
@@ -74,7 +81,7 @@ export class ScraperService {
         title: '',
         image: '',
         description: '',
-        error: error.message
+        error: error.message,
       };
     }
   }

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 type InvitationMediaEntry = {
@@ -12,8 +16,12 @@ export class InvitationsService {
 
   private getEffectiveInvitationState(invitation: any) {
     const now = new Date();
-    const activeUntil = invitation?.activeUntil ? new Date(invitation.activeUntil) : null;
-    const isExpired = Boolean(activeUntil && activeUntil.getTime() < now.getTime());
+    const activeUntil = invitation?.activeUntil
+      ? new Date(invitation.activeUntil)
+      : null;
+    const isExpired = Boolean(
+      activeUntil && activeUntil.getTime() < now.getTime(),
+    );
     const isActive = Boolean(invitation?.isActive) && !isExpired;
     const isPremium = Boolean(invitation?.isPremium) && !isExpired;
 
@@ -22,21 +30,27 @@ export class InvitationsService {
       isActive,
       isPremium,
       accessStatus: isActive
-        ? (isPremium ? 'ACTIVE_PAID' : 'ACTIVE_TRIAL')
-        : (isExpired ? 'EXPIRED' : 'SUSPENDED'),
+        ? isPremium
+          ? 'ACTIVE_PAID'
+          : 'ACTIVE_TRIAL'
+        : isExpired
+          ? 'EXPIRED'
+          : 'SUSPENDED',
     };
   }
 
   private async getTenantByUserId(userId: string) {
     const tenant = await this.prisma.tenant.findUnique({
-      where: { userId }
+      where: { userId },
     });
     if (!tenant) throw new NotFoundException('Tenant not found');
     return tenant;
   }
 
   private asObject(value: any): Record<string, any> {
-    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? value
+      : {};
   }
 
   private extractMediaUrls(invitation: any): string[] {
@@ -58,7 +72,9 @@ export class InvitationsService {
     pushUrl(groom.photo);
     pushUrl(bride.photo);
 
-    const gallery = Array.isArray(invitation?.gallery) ? invitation.gallery : [];
+    const gallery = Array.isArray(invitation?.gallery)
+      ? invitation.gallery
+      : [];
     for (const item of gallery) {
       if (typeof item === 'string') {
         pushUrl(item);
@@ -74,7 +90,10 @@ export class InvitationsService {
     return Array.from(urls);
   }
 
-  private normalizeInvitationMediaPath(url: string, tenantId: string): string | null {
+  private normalizeInvitationMediaPath(
+    url: string,
+    tenantId: string,
+  ): string | null {
     if (!url || typeof url !== 'string') return null;
 
     let pathname = url.trim();
@@ -102,11 +121,17 @@ export class InvitationsService {
     return pathname;
   }
 
-  private collectOwnUploadMediaEntries(invitation: any, tenantId: string): InvitationMediaEntry[] {
+  private collectOwnUploadMediaEntries(
+    invitation: any,
+    tenantId: string,
+  ): InvitationMediaEntry[] {
     const entries = new Map<string, InvitationMediaEntry>();
 
     for (const rawUrl of this.extractMediaUrls(invitation)) {
-      const normalizedPath = this.normalizeInvitationMediaPath(rawUrl, tenantId);
+      const normalizedPath = this.normalizeInvitationMediaPath(
+        rawUrl,
+        tenantId,
+      );
       if (!normalizedPath) continue;
 
       if (!entries.has(normalizedPath)) {
@@ -120,7 +145,10 @@ export class InvitationsService {
     return Array.from(entries.values());
   }
 
-  private async collectMediaPathsUsedByOtherInvitations(tenantId: string, invitationId: string) {
+  private async collectMediaPathsUsedByOtherInvitations(
+    tenantId: string,
+    invitationId: string,
+  ) {
     const otherInvitations = await this.prisma.invitation.findMany({
       where: {
         tenantId,
@@ -154,7 +182,10 @@ export class InvitationsService {
       return new URL('/delete', originalUrl).toString();
     }
 
-    const fallbackCdnUrl = process.env.CDN_APP_URL || process.env.PUBLIC_CDN_URL || 'http://localhost:4000';
+    const fallbackCdnUrl =
+      process.env.CDN_APP_URL ||
+      process.env.PUBLIC_CDN_URL ||
+      'http://localhost:4000';
     return new URL('/delete', fallbackCdnUrl).toString();
   }
 
@@ -164,15 +195,18 @@ export class InvitationsService {
 
     for (const entry of entries) {
       try {
-        const response = await fetch(this.resolveCdnDeleteEndpoint(entry.originalUrl), {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
+        const response = await fetch(
+          this.resolveCdnDeleteEndpoint(entry.originalUrl),
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: entry.normalizedPath,
+            }),
           },
-          body: JSON.stringify({
-            url: entry.normalizedPath,
-          }),
-        });
+        );
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -181,7 +215,10 @@ export class InvitationsService {
 
         deleted += 1;
       } catch (error: any) {
-        console.error(`Failed to delete invitation media ${entry.normalizedPath}:`, error?.message || error);
+        console.error(
+          `Failed to delete invitation media ${entry.normalizedPath}:`,
+          error?.message || error,
+        );
         failed.push(entry.normalizedPath);
       }
     }
@@ -194,10 +231,12 @@ export class InvitationsService {
 
     const invitations = await this.prisma.invitation.findMany({
       where: { tenantId: tenant.id },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
-    return invitations.map((invitation) => this.getEffectiveInvitationState(invitation));
+    return invitations.map((invitation) =>
+      this.getEffectiveInvitationState(invitation),
+    );
   }
 
   async getInvitationById(userId: string, id: string) {
@@ -205,7 +244,7 @@ export class InvitationsService {
 
     const invitation = await this.prisma.invitation.findFirst({
       where: { id, tenantId: tenant.id },
-      include: { guests: true }
+      include: { guests: true },
     });
     if (!invitation) throw new NotFoundException('Invitation not found');
 
@@ -214,7 +253,9 @@ export class InvitationsService {
 
   async checkSlug(slug: string) {
     const requestedSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    const checkSlug = await this.prisma.invitation.findUnique({ where: { slug: requestedSlug } });
+    const checkSlug = await this.prisma.invitation.findUnique({
+      where: { slug: requestedSlug },
+    });
     if (checkSlug) {
       return { available: false };
     }
@@ -226,9 +267,11 @@ export class InvitationsService {
 
     let slug = data.slug;
     if (!slug) throw new BadRequestException('Slug is required');
-    
+
     slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    const checkSlug = await this.prisma.invitation.findUnique({ where: { slug } });
+    const checkSlug = await this.prisma.invitation.findUnique({
+      where: { slug },
+    });
     if (checkSlug) {
       throw new BadRequestException('SLUG_TAKEN');
     }
@@ -239,9 +282,10 @@ export class InvitationsService {
 
     // Pick a random music preset
     const musicPresets = await this.prisma.invitationMusic.findMany();
-    const randomMusicUrl = musicPresets.length > 0 
-      ? musicPresets[Math.floor(Math.random() * musicPresets.length)].url 
-      : '';
+    const randomMusicUrl =
+      musicPresets.length > 0
+        ? musicPresets[Math.floor(Math.random() * musicPresets.length)].url
+        : '';
 
     const payload = {
       tenantId: tenant.id,
@@ -262,11 +306,11 @@ export class InvitationsService {
       isActive: true,
       isPremium: false,
       activeUntil: trialEndDate,
-      premiumPackage: 'FREE_TRIAL'
+      premiumPackage: 'FREE_TRIAL',
     };
 
     const invitation = await this.prisma.invitation.create({
-      data: payload
+      data: payload,
     });
 
     return invitation;
@@ -276,14 +320,16 @@ export class InvitationsService {
     const tenant = await this.getTenantByUserId(userId);
 
     const existing = await this.prisma.invitation.findFirst({
-      where: { id, tenantId: tenant.id }
+      where: { id, tenantId: tenant.id },
     });
     if (!existing) throw new NotFoundException('Invitation not found');
 
     let slug = existing.slug;
     if (data.slug && data.slug.trim() !== '') {
       const requestedSlug = data.slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
-      const checkSlug = await this.prisma.invitation.findUnique({ where: { slug: requestedSlug } });
+      const checkSlug = await this.prisma.invitation.findUnique({
+        where: { slug: requestedSlug },
+      });
       if (checkSlug && checkSlug.id !== existing.id) {
         throw new BadRequestException('SLUG_TAKEN');
       }
@@ -305,7 +351,10 @@ export class InvitationsService {
       backgroundUrl: data.backgroundUrl ?? existing.backgroundUrl,
       qrisImage: data.qrisImage ?? existing.qrisImage,
       design: data.design ?? existing.design,
-      customDomain: (data.customDomain ?? existing.customDomain) === '' ? null : (data.customDomain ?? existing.customDomain),
+      customDomain:
+        (data.customDomain ?? existing.customDomain) === ''
+          ? null
+          : (data.customDomain ?? existing.customDomain),
       seoTitle: data.seoTitle ?? existing.seoTitle,
       seoDescription: data.seoDescription ?? existing.seoDescription,
       seoImage: data.seoImage ?? existing.seoImage,
@@ -313,30 +362,30 @@ export class InvitationsService {
 
     const invitation = await this.prisma.invitation.update({
       where: { id: existing.id },
-      data: payload
+      data: payload,
     });
 
     // Handle guests sync (simple replace for now)
     if (data.guests && Array.isArray(data.guests)) {
       await this.prisma.invitationGuest.deleteMany({
-        where: { invitationId: invitation.id }
+        where: { invitationId: invitation.id },
       });
-      
+
       if (data.guests.length > 0) {
         await this.prisma.invitationGuest.createMany({
           data: data.guests.map((g: any) => ({
             invitationId: invitation.id,
             name: g.name,
             phone: g.phone || '',
-            status: g.status || 'Belum'
-          }))
+            status: g.status || 'Belum',
+          })),
         });
       }
     }
 
     return this.prisma.invitation.findUnique({
       where: { id: invitation.id },
-      include: { guests: true }
+      include: { guests: true },
     });
   }
 
@@ -360,9 +409,17 @@ export class InvitationsService {
     });
     if (!invitation) throw new NotFoundException('Invitation not found');
 
-    const ownUploadEntries = this.collectOwnUploadMediaEntries(invitation, tenant.id);
-    const sharedPaths = await this.collectMediaPathsUsedByOtherInvitations(tenant.id, invitation.id);
-    const deletableEntries = ownUploadEntries.filter((entry) => !sharedPaths.has(entry.normalizedPath));
+    const ownUploadEntries = this.collectOwnUploadMediaEntries(
+      invitation,
+      tenant.id,
+    );
+    const sharedPaths = await this.collectMediaPathsUsedByOtherInvitations(
+      tenant.id,
+      invitation.id,
+    );
+    const deletableEntries = ownUploadEntries.filter(
+      (entry) => !sharedPaths.has(entry.normalizedPath),
+    );
 
     await this.prisma.$transaction(async (tx) => {
       await tx.subscription.deleteMany({
@@ -391,31 +448,35 @@ export class InvitationsService {
 
   async getPublicInvitation(slug: string) {
     const invitation = await this.prisma.invitation.findUnique({
-      where: { slug }
+      where: { slug },
     });
-    const effectiveInvitation = invitation ? this.getEffectiveInvitationState(invitation) : null;
+    const effectiveInvitation = invitation
+      ? this.getEffectiveInvitationState(invitation)
+      : null;
 
     if (!effectiveInvitation || !effectiveInvitation.isActive) {
-      throw new NotFoundException('Undangan tidak ditemukan atau sudah tidak aktif');
+      throw new NotFoundException(
+        'Undangan tidak ditemukan atau sudah tidak aktif',
+      );
     }
     return effectiveInvitation;
   }
 
   async getMusicPresets() {
     return this.prisma.invitationMusic.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   async getBackgroundPresets() {
     return this.prisma.invitationBackground.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   async submitRsvp(slug: string, payload: any) {
     const invitation = await this.prisma.invitation.findUnique({
-      where: { slug }
+      where: { slug },
     });
     if (!invitation) throw new NotFoundException('Undangan tidak ditemukan');
 
@@ -427,8 +488,13 @@ export class InvitationsService {
         source: 'RSVP',
         name: payload.name || 'Tamu',
         notes: payload.wish || '',
-        status: payload.attendance === 'yes' ? 'Hadir' : (payload.attendance === 'no' ? 'Tidak Hadir' : 'Ragu'),
-      }
+        status:
+          payload.attendance === 'yes'
+            ? 'Hadir'
+            : payload.attendance === 'no'
+              ? 'Tidak Hadir'
+              : 'Ragu',
+      },
     });
 
     return { success: true, lead };
@@ -436,7 +502,7 @@ export class InvitationsService {
 
   async getRsvps(slug: string) {
     const invitation = await this.prisma.invitation.findUnique({
-      where: { slug }
+      where: { slug },
     });
     if (!invitation) throw new NotFoundException('Undangan tidak ditemukan');
 
@@ -444,11 +510,11 @@ export class InvitationsService {
       where: {
         tenantId: invitation.tenantId,
         blockId: `invitation-${invitation.id}`,
-        source: 'RSVP'
+        source: 'RSVP',
       },
       orderBy: {
-        createdAt: 'desc'
-      }
+        createdAt: 'desc',
+      },
     });
   }
 
@@ -456,6 +522,8 @@ export class InvitationsService {
     void userId;
     void id;
     void plan;
-    throw new BadRequestException('Aktivasi undangan via saldo toko sudah dinonaktifkan. Gunakan checkout paket durasi 3, 6, atau 12 bulan.');
+    throw new BadRequestException(
+      'Aktivasi undangan via saldo toko sudah dinonaktifkan. Gunakan checkout paket durasi 3, 6, atau 12 bulan.',
+    );
   }
 }

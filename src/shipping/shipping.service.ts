@@ -16,10 +16,15 @@ export class ShippingService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async getBinderByteConfig() {
-    const apiKeyConfig = await this.prisma.systemConfig.findUnique({ where: { key: 'BINDERBYTE_API_KEY' } });
+    const apiKeyConfig = await this.prisma.systemConfig.findUnique({
+      where: { key: 'BINDERBYTE_API_KEY' },
+    });
 
     if (!apiKeyConfig || !apiKeyConfig.value) {
-      throw new HttpException('BinderByte API Key is not configured by Admin.', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        'BinderByte API Key is not configured by Admin.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
 
     return {
@@ -55,7 +60,7 @@ export class ShippingService {
     const config = await this.getBinderByteConfig();
     try {
       const response = await axios.get(`${config.wilayahUrl}/provinsi`, {
-        params: { api_key: config.apiKey }
+        params: { api_key: config.apiKey },
       });
       // Map to frontend expectation (Handle both 'value' or 'data' array formats from BinderByte)
       const list = response.data.value || response.data.data || [];
@@ -66,14 +71,17 @@ export class ShippingService {
       this.setToCache(cacheKey, data, this.REGION_CACHE_TTL);
       return data;
     } catch (error) {
-      const errMsg = error.response?.data?.message || error.response?.data?.messages || 'Failed to fetch provinces from BinderByte';
+      const errMsg =
+        error.response?.data?.message ||
+        error.response?.data?.messages ||
+        'Failed to fetch provinces from BinderByte';
       throw new HttpException(errMsg, HttpStatus.BAD_REQUEST);
     }
   }
 
   async getCities(provinceId?: string) {
     if (!provinceId) {
-       return [];
+      return [];
     }
     const cacheKey = `cities_${provinceId}`;
     const cached = this.getFromCache(cacheKey);
@@ -82,7 +90,7 @@ export class ShippingService {
     const config = await this.getBinderByteConfig();
     try {
       const response = await axios.get(`${config.wilayahUrl}/kabupaten`, {
-        params: { api_key: config.apiKey, id_provinsi: provinceId }
+        params: { api_key: config.apiKey, id_provinsi: provinceId },
       });
       // Map to frontend expectation
       const list = response.data.value || response.data.data || [];
@@ -91,17 +99,25 @@ export class ShippingService {
         province_id: provinceId,
         city_name: c.name,
         type: 'Kota/Kabupaten',
-        postal_code: ''
+        postal_code: '',
       }));
       this.setToCache(cacheKey, data, this.REGION_CACHE_TTL);
       return data;
     } catch (error) {
-      const errMsg = error.response?.data?.message || error.response?.data?.messages || 'Failed to fetch cities from BinderByte';
+      const errMsg =
+        error.response?.data?.message ||
+        error.response?.data?.messages ||
+        'Failed to fetch cities from BinderByte';
       throw new HttpException(errMsg, HttpStatus.BAD_REQUEST);
     }
   }
 
-  async getCost(origin: string, destination: string, weight: number, courier: string) {
+  async getCost(
+    origin: string,
+    destination: string,
+    weight: number,
+    courier: string,
+  ) {
     const cacheKey = `cost_${origin}_${destination}_${weight}_${courier}`;
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
@@ -114,19 +130,22 @@ export class ShippingService {
           courier,
           origin,
           destination,
-          weight
-        }
+          weight,
+        },
       });
 
       // The frontend expects:
       // [ { code: "jne", name: "JNE", costs: [ { service: "REG", description: "Layanan Reguler", cost: [ { value: 10000, etd: "1-2", note: "" } ] } ] } ]
       // Binderbyte Cost API response structure maps nicely to this
       const data = response.data.data;
-      
+
       this.setToCache(cacheKey, data, this.COST_CACHE_TTL);
       return data;
     } catch (error) {
-      const errMsg = error.response?.data?.message || error.response?.data?.messages || 'Failed to calculate shipping cost via BinderByte';
+      const errMsg =
+        error.response?.data?.message ||
+        error.response?.data?.messages ||
+        'Failed to calculate shipping cost via BinderByte';
       throw new HttpException(errMsg, HttpStatus.BAD_REQUEST);
     }
   }
@@ -142,15 +161,18 @@ export class ShippingService {
         params: {
           api_key: config.apiKey,
           courier,
-          awb: waybill
-        }
+          awb: waybill,
+        },
       });
       const data = response.data.data;
-      
+
       this.setToCache(cacheKey, data, this.TRACK_CACHE_TTL);
       return data;
     } catch (error) {
-      const errMsg = error.response?.data?.message || error.response?.data?.messages || 'Failed to track waybill via BinderByte';
+      const errMsg =
+        error.response?.data?.message ||
+        error.response?.data?.messages ||
+        'Failed to track waybill via BinderByte';
       throw new HttpException(errMsg, HttpStatus.BAD_REQUEST);
     }
   }

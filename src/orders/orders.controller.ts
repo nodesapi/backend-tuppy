@@ -1,4 +1,15 @@
-import { Controller, Post, Get, Patch, Param, Body, UseGuards, Request, Query, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './dto/create-order.dto';
@@ -28,10 +39,15 @@ export class OrdersController {
     @Param('orderNumber') orderNumber: string,
     @Body('phone') phone: string,
     @Body('isComplain') isComplain: boolean,
-    @Body('videoUrl') videoUrl?: string
+    @Body('videoUrl') videoUrl?: string,
   ) {
     if (!phone) throw new BadRequestException('Nomor WhatsApp wajib diisi');
-    return this.ordersService.confirmOrderGuest(orderNumber, phone, isComplain, videoUrl);
+    return this.ordersService.confirmOrderGuest(
+      orderNumber,
+      phone,
+      isComplain,
+      videoUrl,
+    );
   }
 
   // PUBLIC: Get Payment Channels for a Store
@@ -56,7 +72,7 @@ export class OrdersController {
   @Post(':orderNumber/payment-proof')
   uploadPaymentProof(
     @Param('orderNumber') orderNumber: string,
-    @Body('proofUrl') proofUrl: string
+    @Body('proofUrl') proofUrl: string,
   ) {
     if (!proofUrl) {
       throw new BadRequestException('proofUrl is required');
