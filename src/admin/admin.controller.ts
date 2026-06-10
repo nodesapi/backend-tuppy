@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminService } from './admin.service';
+import { Role } from '@prisma/client';
 
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'))
@@ -150,5 +151,26 @@ export class AdminController {
   @Delete('invitations/background/:id')
   deleteBackgroundPreset(@Request() req: any, @Param('id') id: string) {
     return this.adminService.deleteBackgroundPreset(req.user.id, id);
+  }
+
+  // Staff Management
+  @Get('staff')
+  getStaff(@Request() req: any) {
+    return this.adminService.getStaff(req.user.id);
+  }
+
+  @Post('staff')
+  createStaff(@Request() req: any, @Body() data: { email: string; password?: string; role: Role; displayName?: string }) {
+    return this.adminService.createStaff(req.user.id, data);
+  }
+
+  @Patch('staff/:id')
+  updateStaff(@Request() req: any, @Param('id') id: string, @Body() data: { email?: string; password?: string; role?: Role; displayName?: string }) {
+    return this.adminService.updateStaff(req.user.id, id, data);
+  }
+
+  @Delete('staff/:id')
+  deleteStaff(@Request() req: any, @Param('id') id: string) {
+    return this.adminService.deleteStaff(req.user.id, id);
   }
 }

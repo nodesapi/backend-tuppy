@@ -5,6 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcryptjs';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
@@ -291,5 +293,102 @@ export class AdminService {
     return this.prisma.invitationBackground.delete({
       where: { id },
     });
+  }
+
+  // Staff Management
+  async getStaff(userId: string) {
+    await this.ensureAdmin(userId);
+    return this.prisma.user.findMany({
+      where: { role: { in: ['ADMIN', 'SUPPORT', 'FINANCE'] } },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        displayName: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createStaff(userId: string, data: { email: string; password?: string; role: Role; displayName?: string }) {
+    await this.ensureAdmin(userId);
+
+    if (!['SUPPORT', 'FINANCE', 'ADMIN'].includes(data.role)) {
+      throw new BadRequestException('Role must be SUPPORT, FINANCE, or ADMIN');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({ where: { email: data.email } });
+    if (existingUser) {
+      throw new BadRequestException('Email is already in use');
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password || 'password123', 10);
+
+    return this.prisma.user.create({
+      data: {
+        email: data.email,
+        password: hashedPassword,
+        role: data.role,
+        displayName: data.displayName,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        displayName: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async updateStaff(userId: string, staffId: string, data: { email?: string; password?: string; role?: Role; displayName?: string }) {
+    await this.ensureAdmin(userId);
+
+    const staff = await this.prisma.user.findUnique({ where: { id: staffId } });
+    if (!staff || !['ADMIN', 'SUPPORT', 'FINANCE'].includes(staff.role)) {
+      throw new NotFoundException('Staff not found');
+    }
+
+    const updateData: any = { ...data };
+
+    if (data.email && data.email !== staff.email) {
+      const existingUser = await this.prisma.user.findUnique({ where: { email: data.email } });
+      if (existingUser) throw new BadRequestException('Email is already in use');
+    }
+
+    if (data.password) {
+      updateData.password = await bcrypt.hash(data.password, 10);
+    } else {
+      delete updateData.password;
+    }
+
+    return this.prisma.user.update({
+      where: { id: staffId },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        displayName: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async deleteStaff(userId: string, staffId: string) {
+    await this.ensureAdmin(userId);
+
+    const staff = await this.prisma.user.findUnique({ where: { id: staffId } });
+    if (!staff || !['ADMIN', 'SUPPORT', 'FINANCE'].includes(staff.role)) {
+      throw new NotFoundException('Staff not found');
+    }
+
+    if (userId === staffId) {
+      throw new BadRequestException('You cannot delete your own account');
+    }
+
+    await this.prisma.user.delete({ where: { id: staffId } });
+    return { success: true, message: 'Staff deleted successfully' };
   }
 }
