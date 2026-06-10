@@ -10,6 +10,23 @@ type InvitationMediaEntry = {
 export class InvitationsService {
   constructor(private prisma: PrismaService) {}
 
+  private getEffectiveInvitationState(invitation: any) {
+    const now = new Date();
+    const activeUntil = invitation?.activeUntil ? new Date(invitation.activeUntil) : null;
+    const isExpired = Boolean(activeUntil && activeUntil.getTime() < now.getTime());
+    const isActive = Boolean(invitation?.isActive) && !isExpired;
+    const isPremium = Boolean(invitation?.isPremium) && !isExpired;
+
+    return {
+      ...invitation,
+      isActive,
+      isPremium,
+      accessStatus: isActive
+        ? (isPremium ? 'ACTIVE_PAID' : 'ACTIVE_TRIAL')
+        : (isExpired ? 'EXPIRED' : 'SUSPENDED'),
+    };
+  }
+
   private async getTenantByUserId(userId: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { userId }
@@ -175,10 +192,12 @@ export class InvitationsService {
   async getInvitations(userId: string) {
     const tenant = await this.getTenantByUserId(userId);
 
-    return this.prisma.invitation.findMany({
+    const invitations = await this.prisma.invitation.findMany({
       where: { tenantId: tenant.id },
       orderBy: { createdAt: 'desc' }
     });
+
+    return invitations.map((invitation) => this.getEffectiveInvitationState(invitation));
   }
 
   async getInvitationById(userId: string, id: string) {
@@ -190,7 +209,7 @@ export class InvitationsService {
     });
     if (!invitation) throw new NotFoundException('Invitation not found');
 
-    return invitation;
+    return this.getEffectiveInvitationState(invitation);
   }
 
   async checkSlug(slug: string) {
@@ -218,6 +237,12 @@ export class InvitationsService {
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 7);
 
+    // Pick a random music preset
+    const musicPresets = await this.prisma.invitationMusic.findMany();
+    const randomMusicUrl = musicPresets.length > 0 
+      ? musicPresets[Math.floor(Math.random() * musicPresets.length)].url 
+      : '';
+
     const payload = {
       tenantId: tenant.id,
       slug,
@@ -230,7 +255,7 @@ export class InvitationsService {
       events: {},
       banks: [],
       gallery: [],
-      musicUrl: '',
+      musicUrl: randomMusicUrl,
       backgroundUrl: '',
       qrisImage: '',
       design: {},
@@ -368,10 +393,12 @@ export class InvitationsService {
     const invitation = await this.prisma.invitation.findUnique({
       where: { slug }
     });
-    if (!invitation || !invitation.isActive) {
+    const effectiveInvitation = invitation ? this.getEffectiveInvitationState(invitation) : null;
+
+    if (!effectiveInvitation || !effectiveInvitation.isActive) {
       throw new NotFoundException('Undangan tidak ditemukan atau sudah tidak aktif');
     }
-    return invitation;
+    return effectiveInvitation;
   }
 
   async getMusicPresets() {
@@ -425,66 +452,9 @@ export class InvitationsService {
   }
 
   async upgradeWithWallet(userId: string, id: string, plan: string) {
-    const tenant = await this.getTenantByUserId(userId);
-
-    const invitation = await this.prisma.invitation.findFirst({
-      where: { id, tenantId: tenant.id }
-    });
-    if (!invitation) throw new NotFoundException('Invitation not found');
-
-    // Dynamic Pricing from SystemConfig
-    const configs = await this.prisma.systemConfig.findMany({
-      where: { key: { in: ['EVENT_PRICING_LIFETIME_WALLET'] } }
-    });
-    const pricing = {
-      'EVENT_LIFETIME': 25000,
-    };
-    for (const c of configs) {
-      if (c.key === 'EVENT_PRICING_LIFETIME_WALLET') pricing['EVENT_LIFETIME'] = parseInt(c.value);
-    }
-
-    let amount = 0;
-    
-    if (plan === 'EVENT_LIFETIME') { amount = pricing['EVENT_LIFETIME']; }
-    else throw new BadRequestException('Paket tidak valid');
-
-    if (tenant.walletBalance < amount) {
-      throw new BadRequestException('Saldo Wallet tidak mencukupi untuk pembayaran ini');
-    }
-
-    // Execute with transaction
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Potong Saldo
-      await tx.tenant.update({
-        where: { id: tenant.id },
-        data: { walletBalance: { decrement: amount } }
-      });
-
-      // 2. Catat Mutasi
-      await tx.walletTransaction.create({
-        data: {
-          tenantId: tenant.id,
-          type: 'DEBIT',
-          amount: amount,
-          description: `Bayar Upgrade Undangan (Seumur Hidup)`,
-          status: 'SUCCESS'
-        }
-      });
-
-      // 3. Tambah Masa Aktif (Seumur Hidup)
-      const updatedInv = await tx.invitation.update({
-        where: { id: invitation.id },
-        data: {
-          isPremium: true,
-          activeUntil: null, // LIFETIME
-          premiumPackage: 'LIFETIME',
-          isActive: true
-        }
-      });
-
-      return updatedInv;
-    });
-
-    return { success: true, message: 'Upgrade berhasil menggunakan saldo wallet', invitation: result };
+    void userId;
+    void id;
+    void plan;
+    throw new BadRequestException('Aktivasi undangan via saldo toko sudah dinonaktifkan. Gunakan checkout paket durasi 3, 6, atau 12 bulan.');
   }
 }

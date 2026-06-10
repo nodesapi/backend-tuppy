@@ -175,6 +175,20 @@ export class SubscriptionsService {
       amount = topupAmount;
       description = `Top Up Saldo Tupply`;
     } else {
+      if (!invitationId) {
+        throw new BadRequestException('Invitation ID wajib dikirim untuk aktivasi undangan.');
+      }
+
+      const invitation = await this.prisma.invitation.findFirst({
+        where: {
+          id: invitationId,
+          tenantId: tenant.id,
+        },
+      });
+      if (!invitation) {
+        throw new NotFoundException('Undangan tidak ditemukan.');
+      }
+
       // Dynamic Pricing from SystemConfig
       const configs = await this.prisma.systemConfig.findMany({
         where: { key: { in: ['EVENT_PRICING_3M', 'EVENT_PRICING_6M', 'EVENT_PRICING_12M'] } }
@@ -195,7 +209,7 @@ export class SubscriptionsService {
       else if (plan === 'EVENT_12_MONTHS') amount = pricing['EVENT_12_MONTHS'];
       else throw new BadRequestException('Invalid EVENT plan');
       
-      description = `Upgrade Invitation Active Period (${plan.replace('EVENT_', '').replace('_', ' ')})`;
+      description = `Aktivasi undangan ${invitation.slug} (${plan.replace('EVENT_', '').replace('_', ' ')})`;
     }
 
     const referenceId = `TUPPLY-${Date.now()}`;

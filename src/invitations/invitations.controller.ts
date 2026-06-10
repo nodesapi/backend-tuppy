@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, UseGuards, Request, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, UseGuards, Request, Param } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { InvitationsService } from './invitations.service';
 
